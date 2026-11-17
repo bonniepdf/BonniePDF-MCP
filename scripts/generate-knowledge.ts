@@ -42,9 +42,13 @@ for (const name of (await readdir(fontDir)).sort()) {
   if (isFont || name === 'OFL.txt') files.set(`fonts/${name}`, bytes);
 }
 const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
-async function walk(path: string): Promise<string[]> {
+async function walk(path: string, optional = false): Promise<string[]> {
+  const entries = await readdir(path, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+    if (optional && error.code === 'ENOENT') return [];
+    throw error;
+  });
   const result: string[] = [];
-  for (const entry of (await readdir(path, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     if (entry.name === 'node_modules' || entry.name === 'bin' || entry.name === 'obj') continue;
     const full = resolve(path, entry.name);
     if (entry.isDirectory()) result.push(...(await walk(full)));
@@ -53,7 +57,7 @@ async function walk(path: string): Promise<string[]> {
   return result;
 }
 const sourceFiles = await walk(resolve(root, 'BonniePDF-TypeScript/examples/src'));
-const csFiles = await walk(resolve(root, 'BonniePDF-NET/Examples'));
+const csFiles = await walk(resolve(root, 'BonniePDF-NET/Examples'), true);
 const sourceIndex = await readFile(resolve(root, 'BonniePDF-TypeScript/examples/src/index.ts'), 'utf8');
 const imports = [...sourceIndex.matchAll(/import \{ generate as (\w+) \} from '(.+)'/g)];
 const sourceById = new Map<string, string>();
@@ -150,7 +154,7 @@ const docs: DocEntry[] = [];
 const referenceRepository = 'bonniepdf/BonniePDF-ApiDocumentation';
 for (const language of ['typescript', 'dotnet']) {
   const dir = resolve(root, `BonniePDF-ApiDocumentation/${language}`);
-  for (const file of await walk(dir)) {
+  for (const file of await walk(dir, true)) {
     if (!file.endsWith('.md')) continue;
     const raw = await readFile(file, 'utf8');
     if (!/^<!-- Generated from the doc comments in the library\./m.test(raw)) continue;
@@ -167,8 +171,7 @@ for (const language of ['typescript', 'dotnet']) {
     });
   }
 }
-// This is the explicitly published schema artifact, not the private specification prose.
-const schema = await readFile(resolve(root, 'BonniePDF-Spec/schema/published/1.0.json'));
+const schema = await readFile(new URL('../schema/definition-1.0.json', import.meta.url));
 files.set('schema.json', schema);
 const coreVersion = JSON.parse(await readFile(resolve(root, 'BonniePDF-TypeScript/core/package.json'), 'utf8')).version;
 const elementSource = await readFile(
@@ -220,10 +223,7 @@ for (const [name, content] of files) {
     }
   }
 }
-const existingFiles = await walk(out).catch((error: NodeJS.ErrnoException) => {
-  if (error.code === 'ENOENT') return [];
-  throw error;
-});
+const existingFiles = await walk(out, true);
 for (const path of existingFiles) {
   const name = relative(out, path).replaceAll('\\', '/');
   if (!files.has(name)) {

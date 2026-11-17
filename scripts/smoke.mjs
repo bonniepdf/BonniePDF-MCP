@@ -16,6 +16,7 @@ transport.stderr?.on('data', chunk => {
 });
 const client = new Client({ name: 'bonniepdf-smoke', version: '0.1.0' });
 const counts = [];
+const definitionWith = (...content) => ({ version: 1, minorVersion: 0, pages: [{ content }] });
 const call = async (name, args = {}) => {
   const result = await client.callTool({ name, arguments: args }, { timeout: 90000 });
   if (result.isError) throw new Error(`${name}: ${JSON.stringify(result.structuredContent ?? result.content)}`);
@@ -42,8 +43,10 @@ try {
   assert.ok(caps.editableExamples > 0);
   const { data: search } = await call('search_docs', { query: 'invoice', kind: 'examples', editableOnly: true });
   assert.ok(search.results.length);
-  const { data: doc } = await call('get_doc', { id: 'typescript/text-block', maxChars: 1000 });
-  assert.ok(doc.text.includes('TextBlock'));
+  if (caps.referencePages > 0) {
+    const { data: doc } = await call('get_doc', { id: 'typescript/text-block', maxChars: 1000 });
+    assert.ok(doc.text.includes('TextBlock'));
+  }
   const { data: element } = await call('describe_element', { name: 'TextBlock' });
   assert.ok(element.keys.fontSize);
   const { data: pageSize } = await call('describe_element', { name: 'Page', property: 'size' });
@@ -127,9 +130,13 @@ try {
   await call('delete_document', { documentId: images.documentId });
   const { data: rotationSchema } = await call('describe_element', { name: 'Rotate', property: 'mode' });
   assert.ok(JSON.stringify(rotationSchema).includes('constrained'));
-  const rotationDefinition = JSON.parse(
-    await readFile(resolve(root, '../BonniePDF-Spec/fixtures/document-definition/valid/rotation.json'), 'utf8')
-  );
+  const rotationDefinition = definitionWith({
+    type: 'Rotate',
+    angle: 90,
+    mode: 'constrained',
+    contentWidth: 100,
+    child: { type: 'TextBlock', text: 'Rotated text' },
+  });
   const { data: rotated } = await call('create_document', { definition: rotationDefinition });
   assert.equal(
     (await call('preview_definition', { documentId: rotated.documentId, includeImages: false })).data.pageCount,
@@ -141,11 +148,9 @@ try {
     const { data: schema } = await call('describe_element', { name });
     assert.ok(JSON.stringify(schema).includes('contentWidth'));
   }
-  const transformsDefinition = JSON.parse(
-    await readFile(
-      resolve(root, '../BonniePDF-Spec/fixtures/document-definition/valid/transforms.json'),
-      'utf8'
-    )
+  const transformsDefinition = definitionWith(
+    { type: 'Flip', horizontal: true, child: { type: 'TextBlock', text: 'Mirrored text' } },
+    { type: 'Translate', x: 5, y: 3, child: { type: 'TextBlock', text: 'Moved text' } }
   );
   const { data: transformed } = await call('create_document', { definition: transformsDefinition });
   assert.equal(

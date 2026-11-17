@@ -1,0 +1,4829 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.bonniepdf.dev/schema/definition/1.0.json",
+  "title": "BonniePDF Document Definition",
+  "description": "Version 1.0 of the Document Definition. This schema checks shape. It cannot check references between nodes (anchors, resources, table of contents identifiers, page indexes), unique ids, the agreement of a chart's title and axes with its data, the single series of a pie, the reader limits, or the passwords that the host supplies; the validators of the libraries do.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "minorVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "settings": {
+      "$ref": "#/$defs/Settings"
+    },
+    "metadata": {
+      "$ref": "#/$defs/Metadata"
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Resource"
+      }
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Attachment"
+      }
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Page"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "minorVersion",
+    "pages"
+  ],
+  "patternProperties": {
+    "^_": {}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Length": {
+      "description": "Points as a number, a token such as \"10mm\" or \"2.5cm\", or { value, unit }.",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^\\s*[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?\\s*(?:pt|in|cm|mm)\\s*$"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "unit": {
+              "enum": [
+                "pt",
+                "in",
+                "cm",
+                "mm"
+              ]
+            }
+          },
+          "required": [
+            "value",
+            "unit"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Color": {
+      "description": "A palette token (\"slate-800\") or a hex colour (\"#1e293b\", \"#rgb\", \"#rgba\", \"#rrggbbaa\").",
+      "type": "string",
+      "pattern": "^(?:(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950)|#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))$"
+    },
+    "Spacing": {
+      "description": "A length, [horizontal, vertical], [left, top, right, bottom], or per-side lengths.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Length"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Length"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Length"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        {
+          "type": "object",
+          "properties": {
+            "top": {
+              "$ref": "#/$defs/Length"
+            },
+            "right": {
+              "$ref": "#/$defs/Length"
+            },
+            "bottom": {
+              "$ref": "#/$defs/Length"
+            },
+            "left": {
+              "$ref": "#/$defs/Length"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Border": {
+      "description": "A width, { width, color }, or per-side widths with an optional colour.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Length"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "width": {
+              "$ref": "#/$defs/Length"
+            },
+            "top": {
+              "$ref": "#/$defs/Length"
+            },
+            "right": {
+              "$ref": "#/$defs/Length"
+            },
+            "bottom": {
+              "$ref": "#/$defs/Length"
+            },
+            "left": {
+              "$ref": "#/$defs/Length"
+            },
+            "color": {
+              "$ref": "#/$defs/Color"
+            }
+          },
+          "not": {
+            "required": [
+              "width"
+            ],
+            "anyOf": [
+              {
+                "required": [
+                  "top"
+                ]
+              },
+              {
+                "required": [
+                  "right"
+                ]
+              },
+              {
+                "required": [
+                  "bottom"
+                ]
+              },
+              {
+                "required": [
+                  "left"
+                ]
+              }
+            ]
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PageSize": {
+      "description": "A named size or { width, height } in points.",
+      "oneOf": [
+        {
+          "enum": [
+            "a0",
+            "a1",
+            "a2",
+            "a3",
+            "a4",
+            "a5",
+            "b0",
+            "b1",
+            "b2",
+            "b3",
+            "b4",
+            "b5",
+            "letter",
+            "legal",
+            "tabloid",
+            "ledger",
+            "statement",
+            "executive"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "height": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FontWeight": {
+      "description": "A weight token or a number from 1 to 1000.",
+      "oneOf": [
+        {
+          "enum": [
+            "thin",
+            "extra-light",
+            "light",
+            "normal",
+            "medium",
+            "semi-bold",
+            "bold",
+            "extra-bold",
+            "black"
+          ]
+        },
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        }
+      ]
+    },
+    "TextDecoration": {
+      "description": "One decoration, or several to combine (\"none\" cannot be combined).",
+      "oneOf": [
+        {
+          "enum": [
+            "none",
+            "underline",
+            "strikethrough",
+            "overline"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "enum": [
+              "underline",
+              "strikethrough",
+              "overline"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      ]
+    },
+    "Permissions": {
+      "description": "\"all\", \"none\", one permission, or a list of them.",
+      "oneOf": [
+        {
+          "enum": [
+            "all",
+            "none",
+            "print",
+            "modify",
+            "copy",
+            "annotate-and-fill-forms",
+            "fill-forms",
+            "extract-for-accessibility",
+            "assemble",
+            "print-high-quality"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "enum": [
+              "print",
+              "modify",
+              "copy",
+              "annotate-and-fill-forms",
+              "fill-forms",
+              "extract-for-accessibility",
+              "assemble",
+              "print-high-quality"
+            ]
+          },
+          "uniqueItems": true
+        }
+      ]
+    },
+    "DateTime": {
+      "description": "An RFC 3339 date-time with an offset.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:[Zz]|[+-]\\d{2}:\\d{2})$"
+    },
+    "ChartNumberFormat": {
+      "description": "G, F<n>, N<n> or P<n>, with n from 0 to 15.",
+      "type": "string",
+      "pattern": "^(?:[Gg]|[FfNnPp](?:[0-9]|1[0-5])?)$"
+    },
+    "IntegerOrUnlimited": {
+      "description": "A whole number of at least 1, or \"unlimited\".",
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "const": "unlimited"
+        }
+      ]
+    },
+    "StackChild": {
+      "description": "An element, or { element, weight } to give it a share of a weighted row.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Element"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/Element"
+            },
+            "weight": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "element",
+            "weight"
+          ],
+          "propertyNames": {
+            "pattern": "^(?:element|weight|_.*)$"
+          }
+        }
+      ]
+    },
+    "ListItem": {
+      "description": "A string, or a nested list of the same type as its parent.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/UnorderedList"
+        },
+        {
+          "$ref": "#/$defs/OrderedList"
+        }
+      ]
+    },
+    "TableCellNode": {
+      "description": "Text, an element, or a cell with options of its own.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/TableCell"
+        },
+        {
+          "$ref": "#/$defs/Element"
+        }
+      ]
+    },
+    "TableRowNode": {
+      "description": "An array of cells, or an object with options and cells.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableCellNode"
+          }
+        },
+        {
+          "$ref": "#/$defs/TableRow"
+        }
+      ]
+    },
+    "TextStyle": {
+      "type": "object",
+      "properties": {
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "$ref": "#/$defs/FontWeight"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "decoration": {
+          "$ref": "#/$defs/TextDecoration"
+        },
+        "decorationColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "decorationThickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "decorationStyle": {
+          "enum": [
+            "solid",
+            "wavy",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "baselineAlignment": {
+          "enum": [
+            "baseline",
+            "superscript",
+            "subscript"
+          ]
+        },
+        "baselineShift": {
+          "$ref": "#/$defs/Length"
+        },
+        "letterSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "wordSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "lineHeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fontFeatures": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[ -~]{4}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "BorderColors": {
+      "type": "object",
+      "properties": {
+        "top": {
+          "$ref": "#/$defs/Color"
+        },
+        "right": {
+          "$ref": "#/$defs/Color"
+        },
+        "bottom": {
+          "$ref": "#/$defs/Color"
+        },
+        "left": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Bookmark": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "pageIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bookmark"
+          }
+        }
+      },
+      "required": [
+        "title",
+        "pageIndex"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Watermark": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rotationDegrees": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "PageLabel": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "enum": [
+            "decimal",
+            "lowercase-roman",
+            "uppercase-roman",
+            "lowercase-alpha",
+            "uppercase-alpha"
+          ]
+        },
+        "startAt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "prefix": {
+          "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Encryption": {
+      "type": "object",
+      "properties": {
+        "algorithm": {
+          "enum": [
+            "rc4-40",
+            "rc4-128",
+            "aes-256"
+          ]
+        },
+        "permissions": {
+          "$ref": "#/$defs/Permissions"
+        },
+        "encryptMetadata": {
+          "type": "boolean"
+        },
+        "userPassword": false,
+        "ownerPassword": false
+      },
+      "required": [
+        "algorithm"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "FacturX": {
+      "type": "object",
+      "properties": {
+        "documentType": {
+          "type": "string"
+        },
+        "documentFileName": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "conformanceLevel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "documentType",
+        "documentFileName",
+        "version",
+        "conformanceLevel"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "PageChromeSlot": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/Element"
+        },
+        "firstPage": {
+          "$ref": "#/$defs/Element"
+        },
+        "odd": {
+          "$ref": "#/$defs/Element"
+        },
+        "even": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "minProperties": 1,
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "PageChrome": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/PageChromeSlot"
+        },
+        "footer": {
+          "$ref": "#/$defs/PageChromeSlot"
+        },
+        "background": {
+          "$ref": "#/$defs/PageChromeSlot"
+        },
+        "foreground": {
+          "$ref": "#/$defs/PageChromeSlot"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Axis": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "type": "string"
+        },
+        "suffix": {
+          "type": "string"
+        },
+        "minValue": {
+          "type": "number"
+        },
+        "maxValue": {
+          "type": "number"
+        },
+        "stepCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "legend": {
+          "type": "string"
+        },
+        "showGridLines": {
+          "type": "boolean"
+        },
+        "verticalLegend": {
+          "type": "boolean"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "SeriesStyle": {
+      "type": "object",
+      "properties": {
+        "lineWidth": {
+          "$ref": "#/$defs/Length"
+        },
+        "fillOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "markerRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "showMarkers": {
+          "type": "boolean"
+        },
+        "stemWidth": {
+          "$ref": "#/$defs/Length"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "DataPoint": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "labelFormat": {
+          "$ref": "#/$defs/ChartNumberFormat"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Series": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "dataPoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataPoint"
+          }
+        },
+        "style": {
+          "$ref": "#/$defs/SeriesStyle"
+        }
+      },
+      "required": [
+        "dataPoints"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ChartData": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "series": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Series"
+          }
+        },
+        "xAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "yAxis": {
+          "$ref": "#/$defs/Axis"
+        }
+      },
+      "required": [
+        "series"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "TableRow": {
+      "type": "object",
+      "properties": {
+        "cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableCellNode"
+          }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "padding": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "minHeight": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "runningValue": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "cells"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "TableCell": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "TableCell"
+        },
+        "border": {
+          "$ref": "#/$defs/Border"
+        },
+        "borderColors": {
+          "$ref": "#/$defs/BorderColors"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "cornerRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "verticalAlignment": {
+          "enum": [
+            "top",
+            "middle",
+            "bottom",
+            "stretch"
+          ]
+        },
+        "content": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/Element"
+            }
+          ]
+        },
+        "columnSpan": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "padding": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "isHeader": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Span": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/$defs/TextStyle"
+        },
+        "lineBreak": {
+          "type": "boolean"
+        },
+        "link": {
+          "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ChartLinearGradient": {
+      "type": "object",
+      "properties": {
+        "startColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "endColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "scope": {
+          "enum": [
+            "bar",
+            "plot"
+          ]
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ChartReference": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "endValue": {
+          "type": "number"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "thickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "dashPattern": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "value",
+        "color"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ChartBarStyle": {
+      "type": "object",
+      "properties": {
+        "cornerRadius": {
+          "type": "number",
+          "minimum": 0
+        },
+        "gradient": {
+          "$ref": "#/$defs/ChartLinearGradient"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Settings": {
+      "type": "object",
+      "properties": {
+        "pageSize": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "orientation": {
+          "enum": [
+            "portrait",
+            "landscape"
+          ]
+        },
+        "margins": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "preservePageDimensions": {
+          "type": "boolean"
+        },
+        "margin": {
+          "$ref": "#/$defs/Length"
+        },
+        "pageColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "pdfVersion": {
+          "enum": [
+            "pdf-1.4",
+            "pdf-1.7",
+            "pdf-2.0"
+          ]
+        },
+        "conformance": {
+          "enum": [
+            "none",
+            "pdf/a-1b",
+            "pdf/a-1a",
+            "pdf/a-2b",
+            "pdf/a-2a",
+            "pdf/a-3b",
+            "pdf/a-3a",
+            "pdf/a-4"
+          ]
+        },
+        "accessibility": {
+          "enum": [
+            "none",
+            "pdf/ua-1"
+          ]
+        },
+        "emojiRendering": {
+          "enum": [
+            "outline",
+            "colour"
+          ]
+        },
+        "missingGlyphs": {
+          "enum": [
+            "drop",
+            "throw"
+          ]
+        },
+        "oversizedContent": {
+          "enum": [
+            "clip",
+            "throw"
+          ]
+        },
+        "language": {
+          "type": "string"
+        },
+        "defaultTextStyle": {
+          "$ref": "#/$defs/TextStyle"
+        },
+        "maxImageDpi": {
+          "$ref": "#/$defs/IntegerOrUnlimited"
+        },
+        "defaultZoom": {
+          "enum": [
+            "fit-page",
+            "fit-width",
+            "fit-height",
+            "custom"
+          ]
+        },
+        "customZoomLevel": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pageMode": {
+          "enum": [
+            "use-none",
+            "use-outlines",
+            "use-thumbs",
+            "full-screen",
+            "use-oc",
+            "use-attachments"
+          ]
+        },
+        "hideToolbar": {
+          "type": "boolean"
+        },
+        "hideMenubar": {
+          "type": "boolean"
+        },
+        "hideWindowUI": {
+          "type": "boolean"
+        },
+        "fitWindow": {
+          "type": "boolean"
+        },
+        "centerWindow": {
+          "type": "boolean"
+        },
+        "displayDocTitle": {
+          "type": "boolean"
+        },
+        "bookmarks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bookmark"
+          }
+        },
+        "namedDestinations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "pageLabel": {
+          "$ref": "#/$defs/PageLabel"
+        },
+        "watermark": {
+          "$ref": "#/$defs/Watermark"
+        },
+        "encryption": {
+          "$ref": "#/$defs/Encryption"
+        },
+        "facturX": {
+          "$ref": "#/$defs/FacturX"
+        },
+        "pageChrome": {
+          "$ref": "#/$defs/PageChrome"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Metadata": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "keywords": {
+          "type": "string"
+        },
+        "creator": {
+          "type": "string"
+        },
+        "producer": {
+          "type": "string"
+        },
+        "creationDate": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "modifiedDate": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "trapped": {
+          "type": "boolean"
+        },
+        "customProperties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Resource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "image",
+            "font",
+            "svg",
+            "attachment"
+          ]
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "family": {
+          "type": "string"
+        },
+        "weight": {
+          "$ref": "#/$defs/FontWeight"
+        },
+        "italic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "mediaType"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "required": [
+                "ref"
+              ]
+            },
+            {
+              "required": [
+                "data"
+              ]
+            }
+          ]
+        }
+      ],
+      "description": "Bytes are referenced (`ref`, supplied by the host) or embedded (`data`)."
+    },
+    "Attachment": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string"
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "relationship": {
+          "enum": [
+            "unspecified",
+            "source",
+            "data",
+            "alternative",
+            "supplement",
+            "encrypted-payload",
+            "form-data",
+            "schema"
+          ]
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "creationDate": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "modificationDate": {
+          "$ref": "#/$defs/DateTime"
+        }
+      },
+      "required": [
+        "resource",
+        "fileName"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Page": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          }
+        },
+        "size": {
+          "$ref": "#/$defs/PageSize"
+        },
+        "orientation": {
+          "enum": [
+            "portrait",
+            "landscape"
+          ]
+        },
+        "margins": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "margin": {
+          "$ref": "#/$defs/Length"
+        },
+        "pageColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "background": {
+          "$ref": "#/$defs/Element"
+        },
+        "foreground": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Container": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Container"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "border": {
+          "$ref": "#/$defs/Border"
+        },
+        "borderColors": {
+          "$ref": "#/$defs/BorderColors"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "cornerRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "fitContent": {
+          "type": "boolean"
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        },
+        "padding": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "fillHeight": {
+          "type": "boolean"
+        },
+        "clipContent": {
+          "type": "boolean"
+        },
+        "crispEdges": {
+          "type": "boolean"
+        },
+        "horizontalAlignment": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch",
+            "left",
+            "right"
+          ]
+        },
+        "verticalAlignment": {
+          "enum": [
+            "top",
+            "middle",
+            "bottom",
+            "stretch"
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "VerticalStack": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "VerticalStack"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "spacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "children"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "HorizontalStack": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "HorizontalStack"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "spacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "alignment": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch",
+            "left",
+            "right"
+          ]
+        },
+        "widthDistribution": {
+          "enum": [
+            "equal",
+            "weighted",
+            "auto"
+          ]
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StackChild"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "children"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Layers": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Layers"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "primary": {
+          "$ref": "#/$defs/Element"
+        },
+        "backgrounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          }
+        },
+        "foregrounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "primary"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Spacer": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Spacer"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "PageBreak": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "PageBreak"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "SemanticGroup": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "SemanticGroup"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "role": {
+          "enum": [
+            "Document",
+            "Sect",
+            "Art",
+            "Div",
+            "BlockQuote",
+            "Caption",
+            "TOC",
+            "TOCI",
+            "Index",
+            "H",
+            "H1",
+            "H2",
+            "H3",
+            "H4",
+            "H5",
+            "H6",
+            "P",
+            "L",
+            "LI",
+            "Lbl",
+            "LBody"
+          ]
+        },
+        "spacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "role",
+        "children"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "EnsureSpace": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "EnsureSpace"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "minHeight": {
+          "$ref": "#/$defs/Length"
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "minHeight",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "PreventPageBreak": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "PreventPageBreak"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ShowEntire": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "ShowEntire"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "StopPaging": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "StopPaging"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ShowOnce": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "ShowOnce"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "SkipOnce": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "SkipOnce"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Unconstrained": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Unconstrained"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ShowIf": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "ShowIf"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        }
+      },
+      "required": [
+        "type",
+        "child"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "TextBlock": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "TextBlock"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "$ref": "#/$defs/FontWeight"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "decoration": {
+          "$ref": "#/$defs/TextDecoration"
+        },
+        "decorationColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "decorationThickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "decorationStyle": {
+          "enum": [
+            "solid",
+            "wavy",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "letterSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "wordSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "lineHeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fontFeatures": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[ -~]{4}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "text": {
+          "type": "string"
+        },
+        "alignment": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "middle",
+            "justify",
+            "start",
+            "end"
+          ]
+        },
+        "minLinesBeforeBreak": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minLinesAfterBreak": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxLines": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ellipsis": {
+          "type": "string"
+        },
+        "firstLineIndent": {
+          "$ref": "#/$defs/Length"
+        },
+        "paragraphSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "preserveWhitespace": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "fontName",
+              "fontFamily"
+            ]
+          }
+        }
+      ]
+    },
+    "Heading": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Heading"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "$ref": "#/$defs/FontWeight"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "decoration": {
+          "$ref": "#/$defs/TextDecoration"
+        },
+        "decorationColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "decorationThickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "decorationStyle": {
+          "enum": [
+            "solid",
+            "wavy",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "letterSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "wordSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "lineHeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fontFeatures": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[ -~]{4}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "text": {
+          "type": "string"
+        },
+        "alignment": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "middle",
+            "justify",
+            "start",
+            "end"
+          ]
+        },
+        "minLinesBeforeBreak": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minLinesAfterBreak": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxLines": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ellipsis": {
+          "type": "string"
+        },
+        "firstLineIndent": {
+          "$ref": "#/$defs/Length"
+        },
+        "paragraphSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "preserveWhitespace": {
+          "type": "boolean"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "tocIdentifier": {
+          "type": "string"
+        },
+        "anchorId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "fontName",
+              "fontFamily"
+            ]
+          }
+        }
+      ]
+    },
+    "RichText": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "RichText"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "spans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Span"
+          }
+        },
+        "alignment": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "middle",
+            "justify",
+            "start",
+            "end"
+          ]
+        },
+        "defaultStyle": {
+          "$ref": "#/$defs/TextStyle"
+        },
+        "minLinesBeforeBreak": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minLinesAfterBreak": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "type",
+        "spans"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "PageNumberOf": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "PageNumberOf"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "$ref": "#/$defs/FontWeight"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "decoration": {
+          "$ref": "#/$defs/TextDecoration"
+        },
+        "decorationColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "decorationThickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "decorationStyle": {
+          "enum": [
+            "solid",
+            "wavy",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "letterSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "wordSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "lineHeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fontFeatures": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[ -~]{4}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "text": {
+          "type": "string"
+        },
+        "alignment": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "middle",
+            "justify",
+            "start",
+            "end"
+          ]
+        },
+        "minLinesBeforeBreak": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minLinesAfterBreak": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxLines": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ellipsis": {
+          "type": "string"
+        },
+        "firstLineIndent": {
+          "$ref": "#/$defs/Length"
+        },
+        "paragraphSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "preserveWhitespace": {
+          "type": "boolean"
+        },
+        "anchorTarget": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text",
+        "anchorTarget"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "fontName",
+              "fontFamily"
+            ]
+          }
+        }
+      ]
+    },
+    "VisualToc": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "VisualToc"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "headingIdentifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type",
+        "headingIdentifiers"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Hyperlink": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Hyperlink"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "text": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "targetPageIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "underline": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "required": [
+                "uri"
+              ]
+            },
+            {
+              "required": [
+                "targetPageIndex"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "SectionLink": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "SectionLink"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "text": {
+          "type": "string"
+        },
+        "anchorTarget": {
+          "type": "string"
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type",
+        "text",
+        "anchorTarget"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Section": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Section"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "anchorId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "anchorId"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "UnorderedList": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "UnorderedList"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "$ref": "#/$defs/FontWeight"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "decoration": {
+          "$ref": "#/$defs/TextDecoration"
+        },
+        "decorationColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "decorationThickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "decorationStyle": {
+          "enum": [
+            "solid",
+            "wavy",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "letterSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "wordSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "lineHeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fontFeatures": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[ -~]{4}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "indent": {
+          "$ref": "#/$defs/Length"
+        },
+        "itemSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ListItem"
+          }
+        },
+        "bulletStyle": {
+          "enum": [
+            "disc",
+            "circle",
+            "square",
+            "dash",
+            "custom"
+          ]
+        },
+        "customBullet": {
+          "type": "string"
+        },
+        "bulletColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type",
+        "items"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "fontName",
+              "fontFamily"
+            ]
+          }
+        }
+      ]
+    },
+    "OrderedList": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "OrderedList"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "fontName": {
+          "type": "string"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "$ref": "#/$defs/FontWeight"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "fontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "decoration": {
+          "$ref": "#/$defs/TextDecoration"
+        },
+        "decorationColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "decorationThickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "decorationStyle": {
+          "enum": [
+            "solid",
+            "wavy",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "letterSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "wordSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "lineHeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fontFeatures": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[ -~]{4}$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "indent": {
+          "$ref": "#/$defs/Length"
+        },
+        "itemSpacing": {
+          "$ref": "#/$defs/Length"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ListItem"
+          }
+        },
+        "numberFormat": {
+          "enum": [
+            "decimal",
+            "upper-roman",
+            "lower-roman",
+            "upper-alpha",
+            "lower-alpha"
+          ]
+        },
+        "startNumber": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "items"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "fontName",
+              "fontFamily"
+            ]
+          }
+        }
+      ]
+    },
+    "Table": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Table"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "border": {
+          "$ref": "#/$defs/Border"
+        },
+        "borderColors": {
+          "$ref": "#/$defs/BorderColors"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "cornerRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "alternateRowBackgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "header": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableRowNode"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableRowNode"
+          }
+        },
+        "footer": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableRowNode"
+          }
+        },
+        "presentation": {
+          "type": "boolean"
+        },
+        "cellPadding": {
+          "$ref": "#/$defs/Length"
+        },
+        "repeatHeadersOnNewPage": {
+          "type": "boolean"
+        },
+        "showFootersOnAllPages": {
+          "type": "boolean"
+        },
+        "runningTotalColumn": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "carriedForwardLabel": {
+          "type": "string"
+        },
+        "broughtForwardLabel": {
+          "type": "string"
+        },
+        "runningTotalFormat": {
+          "$ref": "#/$defs/ChartNumberFormat"
+        },
+        "runningTotalPrefix": {
+          "type": "string"
+        },
+        "headerBackgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "headerTextColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "footerBackgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "footerTextColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "rowBackgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "rowTextColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Image": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Image"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "resource": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "fitMode": {
+          "enum": [
+            "contain",
+            "cover",
+            "fill",
+            "fit-height",
+            "actual-size"
+          ]
+        },
+        "maintainAspectRatio": {
+          "type": "boolean"
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "keepResolution": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "resource"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Svg": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Svg"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "resource": {
+          "type": "string"
+        },
+        "svgData": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "fitMode": {
+          "enum": [
+            "contain",
+            "cover",
+            "fill",
+            "fit-height",
+            "actual-size"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "strictUnsupportedFeatures": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "required": [
+                "resource"
+              ]
+            },
+            {
+              "required": [
+                "svgData"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Line": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Line"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "dashPattern": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "thickness": {
+          "$ref": "#/$defs/Length"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        },
+        "orientation": {
+          "enum": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "length": {
+          "$ref": "#/$defs/Length"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Circle": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Circle"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "diameter": {
+          "$ref": "#/$defs/Length"
+        },
+        "fillColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Ellipse": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Ellipse"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "fillColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "QRCode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "QRCode"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "foregroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "drawBackground": {
+          "type": "boolean"
+        },
+        "data": {
+          "type": "string"
+        },
+        "size": {
+          "$ref": "#/$defs/Length"
+        },
+        "errorCorrection": {
+          "enum": [
+            "low",
+            "medium",
+            "quartile",
+            "high"
+          ]
+        },
+        "quietZone": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Barcode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Barcode"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "foregroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "drawBackground": {
+          "type": "boolean"
+        },
+        "gs1": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "symbology": {
+          "enum": [
+            "code128",
+            "ean13",
+            "upc-a",
+            "itf14"
+          ]
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "moduleWidth": {
+          "$ref": "#/$defs/Length"
+        },
+        "quietZone": {
+          "type": "number"
+        },
+        "includeTextLabel": {
+          "type": "boolean"
+        },
+        "textLabelFontSize": {
+          "$ref": "#/$defs/Length"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "DataMatrix": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "DataMatrix"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "foregroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "drawBackground": {
+          "type": "boolean"
+        },
+        "gs1": {
+          "type": "boolean"
+        },
+        "data": {
+          "type": "string"
+        },
+        "size": {
+          "$ref": "#/$defs/Length"
+        },
+        "rectangular": {
+          "type": "boolean"
+        },
+        "quietZone": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "BarChart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "BarChart"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/ChartData"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "stretchToFit": {
+          "type": "boolean"
+        },
+        "svgShapeRendering": {
+          "enum": [
+            "auto",
+            "crisp-edges"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartReference"
+          }
+        },
+        "xAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "yAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "showValueLabels": {
+          "type": "boolean"
+        },
+        "labelFontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "barColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "barWidthRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "barStyle": {
+          "$ref": "#/$defs/ChartBarStyle"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "GroupedBarChart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "GroupedBarChart"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/ChartData"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "stretchToFit": {
+          "type": "boolean"
+        },
+        "svgShapeRendering": {
+          "enum": [
+            "auto",
+            "crisp-edges"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartReference"
+          }
+        },
+        "xAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "yAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "showValueLabels": {
+          "type": "boolean"
+        },
+        "labelFontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "barWidthRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "groupGapRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "barStyle": {
+          "$ref": "#/$defs/ChartBarStyle"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "LineChart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "LineChart"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/ChartData"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "stretchToFit": {
+          "type": "boolean"
+        },
+        "svgShapeRendering": {
+          "enum": [
+            "auto",
+            "crisp-edges"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartReference"
+          }
+        },
+        "xAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "yAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "showValueLabels": {
+          "type": "boolean"
+        },
+        "labelFontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "sparkline": {
+          "type": "boolean"
+        },
+        "defaultLineWidth": {
+          "$ref": "#/$defs/Length"
+        },
+        "defaultShowMarkers": {
+          "type": "boolean"
+        },
+        "defaultMarkerRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "lineColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "AreaChart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "AreaChart"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/ChartData"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "stretchToFit": {
+          "type": "boolean"
+        },
+        "svgShapeRendering": {
+          "enum": [
+            "auto",
+            "crisp-edges"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartReference"
+          }
+        },
+        "xAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "yAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "showValueLabels": {
+          "type": "boolean"
+        },
+        "labelFontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "defaultFillOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "defaultLineWidth": {
+          "$ref": "#/$defs/Length"
+        },
+        "areaColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "fillOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lineWidth": {
+          "$ref": "#/$defs/Length"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "DotPlotChart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "DotPlotChart"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/ChartData"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "stretchToFit": {
+          "type": "boolean"
+        },
+        "svgShapeRendering": {
+          "enum": [
+            "auto",
+            "crisp-edges"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartReference"
+          }
+        },
+        "xAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "yAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "showValueLabels": {
+          "type": "boolean"
+        },
+        "labelFontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "defaultDotRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "dotColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "LollipopChart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "LollipopChart"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/ChartData"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "stretchToFit": {
+          "type": "boolean"
+        },
+        "svgShapeRendering": {
+          "enum": [
+            "auto",
+            "crisp-edges"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartReference"
+          }
+        },
+        "xAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "yAxis": {
+          "$ref": "#/$defs/Axis"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "showValueLabels": {
+          "type": "boolean"
+        },
+        "labelFontSize": {
+          "$ref": "#/$defs/Length"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "defaultStemWidth": {
+          "$ref": "#/$defs/Length"
+        },
+        "defaultHeadRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "lollipopColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "PieChart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "PieChart"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/ChartData"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Length"
+        },
+        "height": {
+          "$ref": "#/$defs/Length"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "stretchToFit": {
+          "type": "boolean"
+        },
+        "svgShapeRendering": {
+          "enum": [
+            "auto",
+            "crisp-edges"
+          ]
+        },
+        "altText": {
+          "type": "string"
+        },
+        "isDecorative": {
+          "type": "boolean"
+        },
+        "theme": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
+        "colors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Color"
+          }
+        },
+        "isDonut": {
+          "type": "boolean"
+        },
+        "totalLabel": {
+          "type": "string"
+        },
+        "totalValueFormat": {
+          "$ref": "#/$defs/ChartNumberFormat"
+        },
+        "showLegend": {
+          "type": "boolean"
+        },
+        "showTotal": {
+          "type": "boolean"
+        },
+        "totalPosition": {
+          "enum": [
+            "legend",
+            "center"
+          ]
+        },
+        "sliceGradient": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Grid": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Grid"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "border": {
+          "$ref": "#/$defs/Border"
+        },
+        "borderColors": {
+          "$ref": "#/$defs/BorderColors"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "cornerRadius": {
+          "$ref": "#/$defs/Length"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "header": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableRowNode"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableRowNode"
+          }
+        },
+        "footer": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableRowNode"
+          }
+        },
+        "cellPadding": {
+          "$ref": "#/$defs/Length"
+        },
+        "repeatHeadersOnNewPage": {
+          "type": "boolean"
+        },
+        "showFootersOnAllPages": {
+          "type": "boolean"
+        },
+        "runningTotalColumn": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "carriedForwardLabel": {
+          "type": "string"
+        },
+        "broughtForwardLabel": {
+          "type": "string"
+        },
+        "runningTotalFormat": {
+          "$ref": "#/$defs/ChartNumberFormat"
+        },
+        "runningTotalPrefix": {
+          "type": "string"
+        },
+        "headerBackgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "headerTextColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "footerBackgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "footerTextColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "rowBackgroundColor": {
+          "$ref": "#/$defs/Color"
+        },
+        "rowTextColor": {
+          "$ref": "#/$defs/Color"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Rotate": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Rotate"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        },
+        "angle": {
+          "type": "number"
+        },
+        "mode": {
+          "enum": [
+            "free",
+            "constrained"
+          ]
+        },
+        "contentWidth": {
+          "$ref": "#/$defs/Length"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Flip": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Flip"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        },
+        "contentWidth": {
+          "$ref": "#/$defs/Length"
+        },
+        "horizontal": {
+          "type": "boolean"
+        },
+        "vertical": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Translate": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "Translate"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "description": "Author-assigned, unique across the definition."
+        },
+        "margin": {
+          "$ref": "#/$defs/Spacing"
+        },
+        "keepWithNext": {
+          "type": "boolean"
+        },
+        "breakAllowed": {
+          "type": "boolean"
+        },
+        "contentDirection": {
+          "enum": [
+            "leftToRight",
+            "rightToLeft"
+          ]
+        },
+        "child": {
+          "$ref": "#/$defs/Element"
+        },
+        "contentWidth": {
+          "$ref": "#/$defs/Length"
+        },
+        "x": {
+          "$ref": "#/$defs/Length"
+        },
+        "y": {
+          "$ref": "#/$defs/Length"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "Element": {
+      "description": "An element node. `type` selects one of the catalogue elements.",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Container"
+        },
+        {
+          "$ref": "#/$defs/VerticalStack"
+        },
+        {
+          "$ref": "#/$defs/HorizontalStack"
+        },
+        {
+          "$ref": "#/$defs/Layers"
+        },
+        {
+          "$ref": "#/$defs/Spacer"
+        },
+        {
+          "$ref": "#/$defs/PageBreak"
+        },
+        {
+          "$ref": "#/$defs/SemanticGroup"
+        },
+        {
+          "$ref": "#/$defs/EnsureSpace"
+        },
+        {
+          "$ref": "#/$defs/PreventPageBreak"
+        },
+        {
+          "$ref": "#/$defs/ShowEntire"
+        },
+        {
+          "$ref": "#/$defs/StopPaging"
+        },
+        {
+          "$ref": "#/$defs/ShowOnce"
+        },
+        {
+          "$ref": "#/$defs/SkipOnce"
+        },
+        {
+          "$ref": "#/$defs/Unconstrained"
+        },
+        {
+          "$ref": "#/$defs/ShowIf"
+        },
+        {
+          "$ref": "#/$defs/TextBlock"
+        },
+        {
+          "$ref": "#/$defs/Heading"
+        },
+        {
+          "$ref": "#/$defs/RichText"
+        },
+        {
+          "$ref": "#/$defs/PageNumberOf"
+        },
+        {
+          "$ref": "#/$defs/VisualToc"
+        },
+        {
+          "$ref": "#/$defs/Hyperlink"
+        },
+        {
+          "$ref": "#/$defs/SectionLink"
+        },
+        {
+          "$ref": "#/$defs/Section"
+        },
+        {
+          "$ref": "#/$defs/UnorderedList"
+        },
+        {
+          "$ref": "#/$defs/OrderedList"
+        },
+        {
+          "$ref": "#/$defs/Table"
+        },
+        {
+          "$ref": "#/$defs/Image"
+        },
+        {
+          "$ref": "#/$defs/Svg"
+        },
+        {
+          "$ref": "#/$defs/Line"
+        },
+        {
+          "$ref": "#/$defs/Circle"
+        },
+        {
+          "$ref": "#/$defs/Ellipse"
+        },
+        {
+          "$ref": "#/$defs/QRCode"
+        },
+        {
+          "$ref": "#/$defs/Barcode"
+        },
+        {
+          "$ref": "#/$defs/DataMatrix"
+        },
+        {
+          "$ref": "#/$defs/BarChart"
+        },
+        {
+          "$ref": "#/$defs/GroupedBarChart"
+        },
+        {
+          "$ref": "#/$defs/LineChart"
+        },
+        {
+          "$ref": "#/$defs/AreaChart"
+        },
+        {
+          "$ref": "#/$defs/DotPlotChart"
+        },
+        {
+          "$ref": "#/$defs/LollipopChart"
+        },
+        {
+          "$ref": "#/$defs/PieChart"
+        },
+        {
+          "$ref": "#/$defs/Grid"
+        },
+        {
+          "$ref": "#/$defs/Rotate"
+        },
+        {
+          "$ref": "#/$defs/Flip"
+        },
+        {
+          "$ref": "#/$defs/Translate"
+        }
+      ]
+    }
+  }
+}

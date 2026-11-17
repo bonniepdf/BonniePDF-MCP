@@ -123,20 +123,40 @@ The build produces `out/releases/<unique-build>/BonniePDFMCPSetup-<version>-x64.
 
 ## Build and verify
 
-Run from the estate root:
+Clone the TypeScript and MCP repositories as siblings using Node 24 or later and pnpm 11 or later.
 
-```powershell
+```sh
+git clone --branch v2026.11.13 https://github.com/bonniepdf/BonniePDF-TypeScript.git
+git clone https://github.com/bonniepdf/BonniePDF-MCP.git
+```
+
+In the parent directory, create a `package.json` containing `{"private": true}` and a `pnpm-workspace.yaml` containing:
+
+```yaml
+packages:
+  - BonniePDF-TypeScript/core
+  - BonniePDF-TypeScript/examples
+  - BonniePDF-MCP
+allowBuilds:
+  esbuild: true
+```
+
+Run these commands from the parent directory:
+
+```sh
 pnpm install
-pnpm mcp:build
-pnpm mcp:test
+pnpm --filter @bonniepdf/core build
+pnpm --filter @bonniepdf/mcp build
+pnpm --filter @bonniepdf/mcp test
+pnpm --filter @bonniepdf/mcp smoke
 pnpm --filter @bonniepdf/mcp check:knowledge
 ```
 
-Node 24 or later is required. `mcp:build` builds core, regenerates the knowledge bundle and compiles the server. PNG previews use the included resvg dependency. Neither PDF generation nor PNG preview generation requires Chromium.
+The server uses resvg for PNG previews. Both PDF generation and PNG preview generation run without Chromium.
 
 The generated `data/` bundle is ignored by Git. Example sources stay in the shared catalogue; the MCP repository keeps the generator and server code. `build` generates the bundle before compiling, and `pnpm pack` runs that build through `prepack`. Packages and Windows installers include the complete bundle, so end users need no source checkout. `build:code` compiles only the server for development; it does not create a runnable distribution by itself.
 
-The bundle contains catalogue metadata, original TypeScript and corresponding C# source where available, verified JSON definitions, public generated API reference pages, the published schema and deduplicated resources. Runtime uses this bundle and the installed core package; it does not read sibling repositories. Building from source requires the workspace's library/example sources, matching C# examples, generated public API reference pages and published schema. Regenerate public API documentation through its normal pipeline before refreshing knowledge after an API change.
+The bundle contains catalogue metadata, TypeScript source, verified JSON definitions, the included definition schema and deduplicated resources. If a sibling `BonniePDF-NET` checkout or generated API reference is available, the build includes matching C# examples or reference pages. At runtime the server uses the bundle and the installed core package.
 
 Generation never drops unrepresentable content. Callback templates and other unsupported constructs make an example **source-only**, with the reason available through `get_example`. Password-removal notes and content that changes between repeated generation also make an example source-only. For example, a report of measured runtime timings should be produced by running its original source. A JSON starting point must pass strict validation, a canonical round trip, repeatable generation, PDF generation, and first-page SVG comparison against the source example. This is not external PDF conformance certification or a comparison of every rendered page.
 
@@ -147,7 +167,7 @@ Generation never drops unrepresentable content. Callback templates and other uns
 From the estate root, register the compiled server:
 
 ```powershell
-codex mcp add bonniepdf -- node C:/GITHUB/bonniepdf/BonniePDF-MCP/dist/index.js
+codex mcp add bonniepdf -- node /absolute/path/BonniePDF-MCP/dist/index.js
 codex mcp get bonniepdf
 ```
 
@@ -156,7 +176,7 @@ Use the correct absolute path if the estate is elsewhere. Restart/reopen the cli
 ## Connect Claude Code
 
 ```powershell
-claude mcp add --transport stdio --scope user bonniepdf -- node C:/GITHUB/bonniepdf/BonniePDF-MCP/dist/index.js
+claude mcp add --transport stdio --scope user bonniepdf -- node /absolute/path/BonniePDF-MCP/dist/index.js
 claude mcp get bonniepdf
 ```
 
@@ -214,7 +234,7 @@ Native exports explicitly reject encryption settings without host credentials, c
 ## Resource and rendering options
 
 ```powershell
-node BonniePDF-MCP/dist/index.js --out-dir C:/GITHUB/bonniepdf/BonniePDF-MCP/out --resource-dir C:/GITHUB/bonniepdf/my-assets --license evaluation --timeout-ms 45000
+node BonniePDF-MCP/dist/index.js --out-dir /absolute/path/out --resource-dir /absolute/path/my-assets --license evaluation --timeout-ms 45000
 ```
 
 The default licence declaration is `evaluation`; `--license` or `BONNIEPDF_LICENSE` supplies another declaration. This declares the host's applicable tier through the existing library mechanism; it does not grant usage rights or enforce entitlements. Governing library licences remain unchanged.

@@ -57,7 +57,7 @@ Handles and revisions last for one server connection. Export definitions before 
 | `get_capabilities` | Versions, counts, element list and workflow guidance |
 | `search_docs` | Bounded example/API summaries; filter by language or editable examples |
 | `get_doc` | Read one public reference page in bounded sections |
-| `describe_element` | Exact wire-format keys, defaults, nested shapes and enum tokens |
+| `describe_element` | Wire-format keys, tokens and value types; optional `property` returns a focused JSON schema with constraints |
 | `get_example` | Metadata or selected JSON/TypeScript/C# source sections |
 | `create_document` | Clone an example by ID or accept a new definition |
 | `get_document` | Read a subtree using an RFC 6901 JSON Pointer |
@@ -70,7 +70,9 @@ Handles and revisions last for one server connection. Export definitions before 
 
 `bonniepdf://guide` and `bonniepdf://schema/definition/1.0` are readable MCP resources. Artifacts produced in the current connection can also be read through their returned resource URIs. Large artifacts should be opened via their local paths. `author-document` is a reusable MCP prompt.
 
-`create_document` assigns missing IDs to elements. Use the returned outline and `get_document` to locate an edit. Layout snapshots carry these IDs in `sourceId` for body content; page chrome is not captured in that tree. Array edits use standard JSON Pointer indices; `-` appends on an add operation. Root replacement, move/copy/test patch operations are not supported.
+For a new layout, inspect the accepted values before authoring: `describe_element({name: "Page", property: "size"})` returns lowercase named sizes such as `"a4"` and the custom size shape. `describe_element({name: "HorizontalStack", property: "children"})` explains both plain elements and weighted children. `describe_element({name: "Container", property: "padding"})` returns the supported spacing forms and length units. These focused responses use the bundled published schema; semantic validation remains authoritative. Omit `property` for the usual key summary, or request a value type directly with `name: "Length"`.
+
+`create_document` assigns missing IDs to elements. Use the returned outline and `get_document` to locate an edit. Layout snapshots carry these IDs in `sourceId` for body content; page chrome is not captured in that tree. Array edits use standard JSON Pointer indices; `-` appends on an add operation. Move, copy and test operations are supported; root replacement is not supported. Invalid edits leave the document and revision unchanged.
 
 ## Resource and rendering options
 
@@ -82,7 +84,7 @@ The default licence declaration is `evaluation`; `--license` or `BONNIEPDF_LICEN
 
 Bundle resources resolve by hash. Other references require an explicit resource directory and resolve to files within it, checked after symlink resolution. There is no arbitrary URL resolver, submitted source execution or password tool. Portable export currently embeds bundle resources only; host-supplied references must be managed by the host.
 
-Rendering runs in one worker at a time with a 256 MB JavaScript heap limit and configurable deadline; cancellation terminates that worker. Input is capped at 2 MB, 5,000 elements and 100 rendered pages. There are at most 50 live documents and 32 MB of stored JSON per connection. PNG generation has per-page timeouts and a maximum size of 2,000 × 3,000 pixels. Its browser blocks external requests and active document scripts. The worker heap limit is not an operating-system sandbox or a bound on total native memory.
+Rendering runs in one worker at a time with a 256 MB JavaScript heap limit and configurable deadline; cancellation terminates that worker. Input is capped at 2 MB, 5,000 elements and 100 rendered pages. There are at most 50 live documents and 32 MB of stored JSON per connection. PNG generation has per-page timeouts and a maximum size of 2,000 × 3,000 pixels. Rasterisation uses resvg without a browser; external SVG references are stripped and system fonts are not consulted. The worker heap limit is not an operating-system sandbox or a bound on total native memory.
 
 ## Token economy and validation
 
@@ -136,3 +138,9 @@ Such example changes belong in the shared example catalogue and corresponding .N
 - **Token savings are still unmeasured:** cloning by ID and returning a short patch acknowledgement avoid retransmitting complete definitions. The smoke report records text character counts, not model tokens, reasoning usage or image costs. A fair benchmark must compare accepted documents of equivalent quality in the intended client.
 
 The package is private and `UNLICENSED`; public distribution and its licensing have not been selected.
+
+### Native transforms
+
+Use `Flip` with `horizontal` and/or `vertical` to mirror a native subtree inside its original box. Use `Translate` with signed `x` / `y` lengths to move painted content: positive x moves right, positive y moves down. Both retain flow dimensions and accept optional positive `contentWidth`. Provide space for translated content. They compose with `Rotate`, preserve native PDF/SVG content, and transform links and layout snapshots. All three wrappers are atomic and reject page breaks.
+
+Use `Rotate` for sideways labels and angled native content. `angle` is clockwise degrees; `mode: "constrained"` accepts quarter turns and swaps layout dimensions, while `mode: "free"` retains the original flow box. Set `contentWidth` to control the child width before rotation. Rotation keeps the subtree on one page and rejects page breaks. `describe_element({ name: "Rotate" })` exposes the accepted JSON keys; previews and PDFs preserve native text and transformed link bounds.

@@ -30,11 +30,16 @@ try{
   const {data:created}=await call('create_document',{exampleId:'business-invoice'});assert.equal(created.valid,true);
   const {data:edited}=await call('patch_document',{documentId:created.documentId,revision:1,operations:[{op:'replace',path:'/metadata/title',value:'MCP Verification Invoice'}]});assert.equal(edited.revision,2);
   const {data:read}=await call('get_document',{documentId:created.documentId,pointer:'/metadata/title'});assert.equal(JSON.parse(read.text),'MCP Verification Invoice');
+  const {data:found}=await call('find_elements',{documentId:created.documentId,type:'Table',limit:1});assert.ok(found.total>=1);
+  const {data:listed}=await call('list_documents');assert.ok(listed.documents.some(d=>d.documentId===created.documentId));
   const {data:valid}=await call('validate_definition',{documentId:created.documentId});assert.equal(valid.valid,true);
   const {data:preview,result:previewResult}=await call('preview_definition',{documentId:created.documentId,pages:[0],includeImages:true});
   assert.equal(preview.warnings.length,0);assert.ok(previewResult.content.some(c=>c.type==='image'));
   const snapshot=JSON.parse(await readFile(preview.snapshot.path,'utf8'));
   function marked(v){return !!v.sourceId||v.children?.some(marked)}assert.ok(marked(snapshot.snapshot.root));
+  const {data:combined,result:combinedResult}=await call('patch_and_preview',{documentId:created.documentId,revision:2,operations:[{op:'test',path:'/metadata/title',value:'MCP Verification Invoice'},{op:'replace',path:'/metadata/subject',value:'Smoke test'}],includeImages:true});
+  assert.equal(combined.revision,3);assert.ok(combinedResult.content.some(c=>c.type==='image'));
+  const stale=await client.callTool({name:'patch_and_preview',arguments:{documentId:created.documentId,revision:2,operations:[{op:'remove',path:'/metadata/subject'}]}});assert.equal(stale.isError,true);
   const {data:pdf}=await call('render_pdf',{documentId:created.documentId});assert.equal((await readFile(pdf.artifact.path)).subarray(0,5).toString(),'%PDF-');
   const resource=await client.readResource({uri:pdf.artifact.uri});assert.equal(Buffer.from(resource.contents[0].blob,'base64').subarray(0,5).toString(),'%PDF-');
   const {data:exported}=await call('export_definition',{documentId:created.documentId});assert.equal(JSON.parse(await readFile(exported.artifact.path,'utf8')).metadata.title,'MCP Verification Invoice');
@@ -47,7 +52,16 @@ try{
   assert.ok(Object.values(portableDefinition.resources).every(r=>r.data && !r.ref));
   assert.equal((await call('validate_definition',{definition:portableDefinition})).data.valid,true);
   await call('delete_document',{documentId:images.documentId});
-  const report={tools:tools.tools.length,examples:caps.examples,editableExamples:caps.editableExamples,referencePages:caps.referencePages,pageCount:pdf.pageCount,pdf:pdf.artifact.path,preview:preview.previews[0].png.path,counts,note:'Character counts are a diagnostic proxy, not measured token savings.'};
+  // The lite profile exposes a smaller tool set for small local models.
+  const liteTransport=new StdioClientTransport({command:process.execPath,args:[resolve(root,'dist/index.js'),'--profile','lite','--out-dir',resolve(root,'out/smoke')],stderr:'pipe'});
+  const lite=new Client({name:'bonniepdf-smoke-lite',version:'0.1.0'});
+  await lite.connect(liteTransport);
+  const liteTools=(await lite.listTools()).tools.map(t=>t.name).sort();
+  assert.deepEqual(liteTools,['create_document','describe_element','find_elements','get_document','patch_and_preview','render_pdf','search_docs']);
+  const liteSearch=await lite.callTool({name:'search_docs',arguments:{query:'invoice'}});
+  assert.ok(liteSearch.structuredContent.results.every(r=>r.kind==='example'&&r.editable));
+  await lite.close();await liteTransport.close();
+  const report={liteTools:liteTools.length,tools:tools.tools.length,examples:caps.examples,editableExamples:caps.editableExamples,referencePages:caps.referencePages,pageCount:pdf.pageCount,pdf:pdf.artifact.path,preview:preview.previews[0].png.path,counts,note:'Character counts are a diagnostic proxy, not measured token savings.'};
   await mkdir(resolve(root,'out'),{recursive:true});await writeFile(resolve(root,'out/smoke-report.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify(report,null,2));
 }catch(error){console.error(logs);throw error;}finally{await client.close();await transport.close();}

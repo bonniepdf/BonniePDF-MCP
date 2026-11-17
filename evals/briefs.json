@@ -1,5 +1,10 @@
 [
   {
+    "id": "template-preview-pdf",
+    "prompt": "Clone the business invoice without changing its content. Generate a preview and PDF, then report the saved PDF path. Use the combined creation output when possible.",
+    "checks": { "types": ["Table"], "pdf": true, "returnedPath": true }
+  },
+  {
     "id": "invoice-metadata-title",
     "prompt": "Open the business invoice example. Set the PDF's metadata title (not the visible heading) to \"October Services\", then save the PDF.",
     "checks": { "pointerEquals": { "/metadata/title": "October Services" }, "pdf": true }

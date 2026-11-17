@@ -1,0 +1,33 @@
+{
+  "name": "@bonniepdf/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Local BonniePDF authoring tools for MCP assistants",
+  "type": "module",
+  "bin": { "bonniepdf-mcp": "dist/index.js" },
+  "files": ["dist", "data", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "generate:knowledge": "tsx scripts/generate-knowledge.ts",
+    "check:knowledge": "tsx scripts/generate-knowledge.ts --check",
+    "start": "node dist/index.js",
+    "test": "node --test tests/*.test.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "engines": { "node": ">=24" },
+  "dependencies": {
+    "@bonniepdf/core": "workspace:*",
+    "@modelcontextprotocol/server": "2.3.1",
+    "playwright": "1.63.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@bonniepdf/examples": "workspace:*",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@types/node": "26.6.1",
+    "tsx": "^4.23.12",
+    "typescript": "7.0.2"
+  }
+}

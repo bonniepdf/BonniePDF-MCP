@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import { resolve, relative, basename, dirname, isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
-import { settings } from '@bonniepdf/core';
+import { settings, FontManager } from '@bonniepdf/core';
 import { toDefinition, fromDefinition, validateDefinition } from '@bonniepdf/core/definition';
 import { registerBundledFonts } from '../../BonniePDF-TypeScript/examples/scripts/register-bundled-fonts.ts';
 import type { ExampleEntry, DocEntry } from '../src/types.js';
@@ -25,6 +25,16 @@ settings.license = 'evaluation';
 registerBundledFonts();
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 const files = new Map<string, Uint8Array | string>();
+// Catalogue examples name fonts by their site path (/fonts/…). Register the same
+// files under those identifiers so definitions are verified with the real faces,
+// and bundle them (with their licence) so the server renders them identically.
+const fontDir = resolve(root, 'BonniePDF-TypeScript/examples/assets/fonts');
+for (const name of (await readdir(fontDir)).sort()) {
+  const bytes = new Uint8Array(await readFile(resolve(fontDir, name)));
+  const isFont = /\.(?:ttf|otf)$/i.test(name);
+  if (isFont) FontManager.registerFont(bytes, { identifier: `/fonts/${name}` });
+  if (isFont || name === 'OFL.txt') files.set(`fonts/${name}`, bytes);
+}
 const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
 async function walk(path: string): Promise<string[]> {
   const result: string[] = [];

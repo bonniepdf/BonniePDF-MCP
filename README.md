@@ -125,7 +125,26 @@ The build produces `out/releases/<unique-build>/BonniePDFMCPSetup-<version>-x64.
 
 GitHub Actions builds on Linux and Windows for pull requests and pushes to `master`. The workflow tests a clean Windows install, repair and uninstall, and runs the packaged Claude Desktop extension's server diagnostics on Windows and macOS. The tested downloads are available as Actions artifacts.
 
-A tag matching the package version, such as `v2026.11.12`, runs the same checks before publishing the three downloads at the latest GitHub release. Use a new tag for each release. The `release` environment can sign the installer via `WINDOWS_SIGNING_PFX_BASE64` and `WINDOWS_SIGNING_PASSWORD`. If explicitly distributing an unsigned installer, set `ALLOW_UNSIGNED_WINDOWS_INSTALLER` to `true` in that environment. Tagged releases verify the public website links and run diagnostics from the published npm tarball.
+A tag matching the package version, such as `v2026.11.13`, runs the same checks before publishing the three downloads at the latest GitHub release. Use a new tag for each release. The `release` environment signs the installer through Microsoft Artifact Signing. Tagged releases verify the public website links and run diagnostics from the published npm tarball.
+
+### Enable Windows code signing
+
+1. Create a Microsoft Artifact Signing account, complete organisation identity validation, and create a Public Trust certificate profile. Follow the [Microsoft setup guide](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart).
+2. Create a Microsoft Entra application and add a GitHub federated credential for organisation `bonniepdf`, repository `BonniePDF-MCP`, and environment `release`. Its subject is `repo:bonniepdf/BonniePDF-MCP:environment:release`. Assign the application the **Artifact Signing Certificate Profile Signer** role on that certificate profile. Follow the [OIDC setup guide](https://github.com/Azure/artifact-signing-action/blob/main/docs/OIDC.md).
+3. In this repository's GitHub settings, open **Environments**, select **release**, and add these environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `AZURE_CLIENT_ID` | Application client ID |
+| `AZURE_TENANT_ID` | Microsoft Entra directory ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| `AZURE_SIGNING_ENDPOINT` | Regional service endpoint from the signing account |
+| `AZURE_SIGNING_ACCOUNT` | Artifact Signing account name |
+| `AZURE_SIGNING_PROFILE` | Public Trust certificate profile name |
+
+Push a matching version tag after configuration. The release job signs the installer, timestamps it, verifies its Authenticode signature, and publishes it after successful checks.
+
+For an explicitly unsigned release, set `ALLOW_UNSIGNED_WINDOWS_INSTALLER` to `true` in the `release` environment. The release notes identify unsigned installers.
 
 The website uses the same package tarball for its command-based connections:
 

@@ -137,6 +137,7 @@ jobs:
     concurrency: bonniepdf-mcp-github-release
     permissions:
       contents: write
+      id-token: write
     environment: release
     steps:
       - uses: actions/download-artifact@v8
@@ -144,31 +145,38 @@ jobs:
           path: assets
           merge-multiple: true
 
-      - name: Sign and verify the installer
+      - name: Log in to Azure for signing
+        if: vars.ALLOW_UNSIGNED_WINDOWS_INSTALLER != 'true'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign the installer with Microsoft Artifact Signing
+        if: vars.ALLOW_UNSIGNED_WINDOWS_INSTALLER != 'true'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}/assets
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          exclude-environment-credential: true
+          exclude-azure-cli-credential: false
+
+      - name: Verify the installer signature
         if: vars.ALLOW_UNSIGNED_WINDOWS_INSTALLER != 'true'
         shell: pwsh
-        env:
-          SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
-          SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if (!$env:SIGNING_PFX_BASE64) { throw 'Configure Windows code signing in the release environment.' }
-          $password = ConvertTo-SecureString $env:SIGNING_PASSWORD -AsPlainText -Force
-          $pfx = Join-Path $env:RUNNER_TEMP 'installer-signing.pfx'
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
-          try {
-            $certificate = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password |
-              Where-Object HasPrivateKey | Select-Object -First 1
-          } finally {
-            Remove-Item -LiteralPath $pfx -Force
-          }
-          if (!$certificate) { throw 'The signing bundle did not contain a certificate with a private key.' }
           $installer = 'assets/BonniePDFMCPSetup-x64.exe'
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
             Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (!$signtool) { throw 'Windows SDK SignTool is missing' }
-          & $signtool sign /sha1 $certificate.Thumbprint /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $signtool verify /pa /tw $installer
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

@@ -20,7 +20,9 @@
     "check:knowledge": "tsx scripts/generate-knowledge.ts --check",
     "start": "node dist/index.js",
     "test": "node --test tests/*.test.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "format": "prettier --write src scripts tests config",
+    "format:check": "prettier --check src scripts tests config"
   },
   "engines": {
     "node": ">=24"
@@ -35,6 +37,7 @@
     "@bonniepdf/examples": "workspace:*",
     "@modelcontextprotocol/client": "2.3.1",
     "@types/node": "26.6.1",
+    "prettier": "3.9.5",
     "tsx": "^4.23.12",
     "typescript": "7.0.2"
   }

@@ -9,7 +9,7 @@ import { renameFont, stripExternalReferences, rasterizeSvgPages } from '../dist/
 import { pdfPageCount } from '../dist/render-worker.js';
 
 const k = new KnowledgeBase();
-const example = (id) => JSON.parse(k.file(k.example(id).definition));
+const example = id => JSON.parse(k.file(k.example(id).definition));
 const PNG = '89504e47';
 
 test('previews produce PNGs without a browser', async () => {
@@ -30,7 +30,12 @@ test('catalogue fonts referenced by /fonts/ identifiers are embedded, not replac
 });
 
 test('a page too large to rasterise keeps its SVG and reports a warning', async () => {
-  const d = { version: 1, minorVersion: 0, settings: { pageSize: { width: 300, height: 3200 } }, pages: [{ content: [{ type: 'TextBlock', text: 'Wide' }] }] };
+  const d = {
+    version: 1,
+    minorVersion: 0,
+    settings: { pageSize: { width: 300, height: 3200 } },
+    pages: [{ content: [{ type: 'TextBlock', text: 'Wide' }] }],
+  };
   const r = new Renderer(resolve('out/tests'));
   const preview = await r.render(d, 'preview', [0], true);
   assert.equal(preview.previews.length, 1);
@@ -82,7 +87,8 @@ test('renamed fonts carry the private family and previews never read external re
   const renamed = renameFont(font, 'bpf-test-family');
   assert.equal(renamed.readUInt32BE(0), font.readUInt32BE(0));
   assert.ok(renamed.includes(Buffer.from('bpf-test-family', 'utf16le').swap16()));
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><image href="file:///C:/secret.png"/><image xlink:href=\'../x.png\'/><use href="#a"/><image href="data:image/png;base64,AA"/></svg>';
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><image href="file:///C:/secret.png"/><image xlink:href=\'../x.png\'/><use href="#a"/><image href="data:image/png;base64,AA"/></svg>';
   const safe = stripExternalReferences(svg);
   assert.ok(!safe.includes('secret') && !safe.includes('x.png'));
   assert.ok(safe.includes('href="#a"') && safe.includes('href="data:'));

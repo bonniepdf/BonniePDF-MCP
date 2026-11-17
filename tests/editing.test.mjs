@@ -53,17 +53,31 @@ test('move, copy and test operations follow RFC 6902', () => {
   assert.equal(copies.length, 2);
   assert.notEqual(copies[0].id, copies[1].id, 'a copy receives a fresh unique id');
   assert.throws(
-    () => store.patch(documentId, 3, [{ op: 'test', path: '/pages/0/content/0/text', value: 'Other' }, { op: 'remove', path: '/pages/0/content/0' }]),
-    /Test failed/,
+    () =>
+      store.patch(documentId, 3, [
+        { op: 'test', path: '/pages/0/content/0/text', value: 'Other' },
+        { op: 'remove', path: '/pages/0/content/0' },
+      ]),
+    /Test failed/
   );
   assert.equal(store.get(documentId).revision, 3, 'a failed test leaves the document unchanged');
-  assert.throws(() => store.patch(documentId, 3, [{ op: 'move', from: '/pages/0', path: '/pages/0/content/0' }]), /into itself/);
+  assert.throws(
+    () => store.patch(documentId, 3, [{ op: 'move', from: '/pages/0', path: '/pages/0/content/0' }]),
+    /into itself/
+  );
 });
 
 test('failed operations name the operation that failed', () => {
   const store = new DocumentStore();
   const { documentId } = store.create(definition());
-  assert.throws(() => store.patch(documentId, 1, [{ op: 'replace', path: '/pages/0/content/1/text', value: 'x' }, { op: 'remove', path: '/nope' }]), /Operation 1 \(remove \/nope\)/);
+  assert.throws(
+    () =>
+      store.patch(documentId, 1, [
+        { op: 'replace', path: '/pages/0/content/1/text', value: 'x' },
+        { op: 'remove', path: '/nope' },
+      ]),
+    /Operation 1 \(remove \/nope\)/
+  );
 });
 
 test('validation failures are truncated consistently', () => {

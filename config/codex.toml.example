@@ -1,5 +1,7 @@
 [mcp_servers.bonniepdf]
-command = "node"
-args = ["C:/GITHUB/bonniepdf/BonniePDF-MCP/dist/index.js"]
-startup_timeout_sec = 15
-tool_timeout_sec = 90
+# Prefer the installed Connect assistants shortcut, which writes actual paths.
+# For a manual connection, replace YOUR_USER with your Windows profile directory.
+command = "C:/Users/YOUR_USER/AppData/Local/Programs/BonniePDF MCP/runtime/node.exe"
+args = ["C:/Users/YOUR_USER/AppData/Local/Programs/BonniePDF MCP/server/dist/index.js", "serve"]
+startup_timeout_sec = 30
+tool_timeout_sec = 120

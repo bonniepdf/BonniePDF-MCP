@@ -2,8 +2,8 @@
   "mcpServers": {
     "bonniepdf": {
       "type": "stdio",
-      "command": "node",
-      "args": ["C:/GITHUB/bonniepdf/BonniePDF-MCP/dist/index.js"]
+      "command": "C:/Users/YOUR_USER/AppData/Local/Programs/BonniePDF MCP/runtime/node.exe",
+      "args": ["C:/Users/YOUR_USER/AppData/Local/Programs/BonniePDF MCP/server/dist/index.js", "serve"]
     }
   }
 }

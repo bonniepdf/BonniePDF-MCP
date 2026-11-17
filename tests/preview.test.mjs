@@ -23,7 +23,19 @@ test('previews produce PNGs without a browser', async () => {
 
 test('catalogue fonts referenced by /fonts/ identifiers are embedded, not replaced by Helvetica', async () => {
   const r = new Renderer(resolve('out/tests'));
-  const preview = await r.render(example('emojis-and-unicode'), 'preview', [0], false);
+  const definition = {
+    version: 1,
+    minorVersion: 0,
+    pages: [
+      {
+        content: [
+          { type: 'TextBlock', text: '😀', fontName: '/fonts/NotoEmoji-Regular.ttf', fontSize: 24 },
+          { type: 'TextBlock', text: '∑', fontName: '/fonts/NotoSansMath-Regular.ttf', fontSize: 24 },
+        ],
+      },
+    ],
+  };
+  const preview = await r.render(definition, 'preview', [0], false);
   const svg = await readFile(preview.previews[0].svg.path, 'utf8');
   assert.match(svg, /bpf-fonts-notoemoji-regular-ttf/);
   assert.match(svg, /bpf-fonts-notosansmath-regular-ttf/);

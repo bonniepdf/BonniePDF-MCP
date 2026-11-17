@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "bonniepdf": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["C:/GITHUB/bonniepdf/BonniePDF-MCP/dist/index.js"]
+    }
+  }
+}

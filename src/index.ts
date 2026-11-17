@@ -6,7 +6,17 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { isLicenseTier } from '@bonniepdf/core';
 import { createServer, type ServerOptions } from './server.js';
 
-const HELP = `bonniepdf-mcp [options]
+const argv = process.argv.slice(2);
+if (argv[0] === 'ollama' || argv[0] === 'benchmark') {
+  const module = await import(
+    new URL(argv[0] === 'ollama' ? '../scripts/ollama-agent.mjs' : '../scripts/eval-models.mjs', import.meta.url).href
+  );
+  await (argv[0] === 'ollama' ? module.runOllama : module.runEvaluation)(argv.slice(1));
+} else if (['setup', 'doctor', 'config', 'remove'].includes(argv[0])) {
+  const { runManagement } = await import('./management.js');
+  await runManagement(argv[0], argv.slice(1));
+} else {
+  const HELP = `bonniepdf-mcp [options]
 Local stdio MCP server. Logs go to stderr.
 
   --out-dir <dir>               Artifact directory (default: <package>/out)
@@ -15,60 +25,67 @@ Local stdio MCP server. Logs go to stderr.
   --timeout-ms <ms>             Render deadline, 100–120000 (default: 45000)
   --profile full|lite           lite exposes 7 tools with short descriptions for small models
   --session-dir <dir>           Persist document handles here so they survive restarts
+  --metrics-file <file>         Append content-free timing and response-size measurements as JSONL
   --preview-ttl-hours <h>       Remove preview artifacts older than this (default: 24; 0 keeps them)
   --artifact-ttl-hours <h>      Remove PDFs/exports older than this (default: 0, keep)`;
 
-const { values } = parseArgs({
-  options: {
-    'out-dir': { type: 'string' },
-    'resource-dir': { type: 'string' },
-    license: { type: 'string' },
-    'timeout-ms': { type: 'string' },
-    profile: { type: 'string' },
-    'session-dir': { type: 'string' },
-    'preview-ttl-hours': { type: 'string' },
-    'artifact-ttl-hours': { type: 'string' },
-    help: { type: 'boolean' },
-  },
-});
-
-const number = (name: string, raw: string | undefined, fallback: number, min: number, max: number) => {
-  const value = Number(raw ?? fallback);
-  if (!Number.isFinite(value) || value < min || value > max) throw new Error(`${name} must be ${min}–${max}`);
-  return value;
-};
-
-if (values.help) {
-  console.error(HELP);
-} else {
-  const license = values.license ?? process.env.BONNIEPDF_LICENSE ?? 'evaluation';
-  if (!isLicenseTier(license)) throw new Error('Unrecognised licence tier');
-  const timeoutMs = number('timeout-ms', values['timeout-ms'], 45_000, 100, 120_000);
-  if (!Number.isInteger(timeoutMs)) throw new Error('timeout-ms must be an integer');
-  const profile = values.profile ?? process.env.BONNIEPDF_MCP_PROFILE ?? 'full';
-  if (profile !== 'full' && profile !== 'lite') throw new Error('profile must be full or lite');
-  const sessionDir = values['session-dir'] ?? process.env.BONNIEPDF_MCP_SESSION_DIR;
-  const options: ServerOptions = {
-    outDir: resolve(values['out-dir'] ?? fileURLToPath(new URL('../out/', import.meta.url))),
-    resourceDir: values['resource-dir'] ? resolve(values['resource-dir']) : undefined,
-    license,
-    timeoutMs,
-    profile,
-    sessionDir: sessionDir ? resolve(sessionDir) : undefined,
-    previewTtlHours: number('preview-ttl-hours', values['preview-ttl-hours'], 24, 0, 24 * 365),
-    artifactTtlHours: number('artifact-ttl-hours', values['artifact-ttl-hours'], 0, 0, 24 * 365),
-  };
-  // Building the first server reads the bundle, so missing or stale data fails before serving.
-  const server = createServer(options);
-  let first = true;
-  serveStdio(
-    () => {
-      if (first) {
-        first = false;
-        return server;
-      }
-      return createServer(options);
+  const { values } = parseArgs({
+    args: argv[0] === 'serve' ? argv.slice(1) : argv,
+    options: {
+      'out-dir': { type: 'string' },
+      'resource-dir': { type: 'string' },
+      license: { type: 'string' },
+      'timeout-ms': { type: 'string' },
+      profile: { type: 'string' },
+      'session-dir': { type: 'string' },
+      'metrics-file': { type: 'string' },
+      'preview-ttl-hours': { type: 'string' },
+      'artifact-ttl-hours': { type: 'string' },
+      help: { type: 'boolean' },
     },
-    { onerror: error => console.error(error.message) }
-  );
+  });
+
+  const number = (name: string, raw: string | undefined, fallback: number, min: number, max: number) => {
+    const value = Number(raw ?? fallback);
+    if (!Number.isFinite(value) || value < min || value > max) throw new Error(`${name} must be ${min}–${max}`);
+    return value;
+  };
+
+  if (values.help) {
+    console.error(HELP);
+    const { MANAGEMENT_HELP } = await import('./management.js');
+    console.error(MANAGEMENT_HELP);
+  } else {
+    const license = values.license ?? process.env.BONNIEPDF_LICENSE ?? 'evaluation';
+    if (!isLicenseTier(license)) throw new Error('Unrecognised licence tier');
+    const timeoutMs = number('timeout-ms', values['timeout-ms'], 45_000, 100, 120_000);
+    if (!Number.isInteger(timeoutMs)) throw new Error('timeout-ms must be an integer');
+    const profile = values.profile ?? process.env.BONNIEPDF_MCP_PROFILE ?? 'full';
+    if (profile !== 'full' && profile !== 'lite') throw new Error('profile must be full or lite');
+    const sessionDir = values['session-dir'] ?? process.env.BONNIEPDF_MCP_SESSION_DIR;
+    const options: ServerOptions = {
+      outDir: resolve(values['out-dir'] ?? fileURLToPath(new URL('../out/', import.meta.url))),
+      resourceDir: values['resource-dir'] ? resolve(values['resource-dir']) : undefined,
+      license,
+      timeoutMs,
+      profile,
+      sessionDir: sessionDir ? resolve(sessionDir) : undefined,
+      metricsFile: values['metrics-file'] ? resolve(values['metrics-file']) : undefined,
+      previewTtlHours: number('preview-ttl-hours', values['preview-ttl-hours'], 24, 0, 24 * 365),
+      artifactTtlHours: number('artifact-ttl-hours', values['artifact-ttl-hours'], 0, 0, 24 * 365),
+    };
+    // Building the first server reads the bundle, so missing or stale data fails before serving.
+    const server = createServer(options);
+    let first = true;
+    serveStdio(
+      () => {
+        if (first) {
+          first = false;
+          return server;
+        }
+        return createServer(options);
+      },
+      { onerror: error => console.error(error.message) }
+    );
+  }
 }

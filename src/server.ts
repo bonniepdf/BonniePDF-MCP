@@ -3,12 +3,15 @@ import * as z from 'zod';
 import { KnowledgeBase } from './knowledge.js';
 import { DocumentStore, validate } from './documents.js';
 import { Renderer, type RendererOptions } from './render.js';
+import { appendFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { SourceExporter } from './source-export.js';
 
 export const GUIDE = `BonniePDF authors documents from a tree of elements, not HTML. Use search_docs to find a recipe or finished design. get_example returns source or JSON on demand; create_document(exampleId) clones a verified definition without sending it through the conversation. create_document(definition) accepts a new definition, and create_document(blank: true) starts an empty page. Handles last for this server connection unless the host enables persistence; list_documents shows them.
 Locate elements with find_elements (by text, type or ID) rather than reading the whole tree. Every path accepts an RFC 6901 JSON Pointer or #elementId/rest, e.g. #mcp-4/text. Read only what you need with get_document; edit with patch_document (add, remove, replace, move, copy, test) and its current revision. patch_and_preview edits and renders in one call. IDs added by the host link body elements to layout sourceId. Page chrome is outside the layout snapshot tree.
-Use describe_element for exact keys, nested shapes and tokens; add property to inspect accepted JSON values and constraints without reading the whole schema. Page sizes use lowercase tokens such as "a4"; numeric lengths are points. To center a fixed-size design on a page, use an outer Container with fillHeight: true, horizontalAlignment: "center", verticalAlignment: "middle", and a child Container with explicit width and height. Rotate wraps native content: use angle: 90 or -90 and mode: "constrained" for sideways labels; contentWidth fixes the unrotated width. Free rotation keeps its original flow box, so provide clearance. Rotation is atomic and cannot contain page breaks. JSON keys are case-sensitive. validate_definition uses BonniePDF's strict semantic validator, not only JSON Schema. preview_definition returns page count, advisory accessibility findings, selected SVG/PNG artifacts and optionally images. Inspect the selected preview before finalising; a valid definition does not guarantee the requested content or attractive layout. render_pdf produces an artifact, never executable code. export_definition saves the JSON and its external resource files for reuse. Resources resolve only from the bundle or the host's configured resource directory. Passwords are not stored in definitions; encrypted source examples are source-only.
-Many source examples use callbacks unavailable in JSON. The server labels these source-only rather than dropping content. Retrieve their TypeScript/C# source when writing code examples. It does not generate idiomatic TypeScript/C# source from arbitrary definitions, nor claim full PDF/A/PDF/UA compliance from advisory preflight. Use external validation where required.
-For economical authoring, search summaries first, clone by example ID, patch only changed values, retrieve short documentation sections, and preview at most the pages needed. Content and tool responses still enter the connected assistant's context.`;
+Use describe_element for exact keys, nested shapes and tokens; add property to inspect accepted JSON values and constraints without reading the whole schema. Page sizes use lowercase tokens such as "a4"; numeric lengths are points. To center a fixed-size design on a page, use an outer Container with fillHeight: true, horizontalAlignment: "center", verticalAlignment: "middle", and a child Container with explicit width and height. Rotate wraps native content: use angle: 90 or -90 and mode: "constrained" for sideways labels; contentWidth fixes the unrotated width. Free rotation keeps its original flow box, so provide clearance. Rotation is atomic and cannot contain page breaks. JSON keys are case-sensitive. validate_definition uses BonniePDF's strict semantic validator, not only JSON Schema. preview_definition returns page count, advisory accessibility findings, selected SVG/PNG artifacts and optionally images. Inspect the selected preview before finalising; a valid definition does not guarantee the requested content or attractive layout. render_pdf produces an artifact, never executable code. export_definition saves portable JSON or native C#/TypeScript code for reuse. Resources resolve only from the bundle or the host's configured resource directory. Passwords are not stored in definitions; encrypted source examples are source-only.
+Many source examples use callbacks unavailable in JSON. The server labels these source-only rather than dropping content. Retrieve their TypeScript/C# source when writing code examples. Use export_definition with format "json", "typescript", "dotnet" or "all" to export the current edited document. TypeScript and C# exports use native constructors and properties, embedding resource data; unsupported constructs return an explicit error. Advisory preflight does not certify PDF/A/PDF/UA compliance. Use external validation where required.
+For economical authoring, search editable examples first. create_document accepts output: "preview", "pdf" or "pdf-and-preview" to create and render in one call; omit output to edit first. Supply names to describe_element to fetch up to eight element types together. Plan a complete first layout, batch related edits, then preview only the pages needed. Correct specific visible problems rather than repeatedly rebuilding the document. Do not read a whole definition or layout snapshot when find_elements and focused reads suffice. Content and tool responses still enter the connected assistant's context.`;
 
 /** A shorter guide for small local models, matching the lite tool set. */
 export const LITE_GUIDE = `You build PDFs with BonniePDF. Workflow:
@@ -16,7 +19,7 @@ export const LITE_GUIDE = `You build PDFs with BonniePDF. Workflow:
 2. find_elements({documentId, text:"..."}) finds the element to change. Paths may be "#<elementId>/<key>", e.g. "#mcp-4/text".
 3. patch_and_preview({documentId, revision, operations:[{op:"replace", path:"#mcp-4/text", value:"New text"}]}) applies edits, then shows the page. Always pass the latest revision.
 4. describe_element("TextBlock") lists valid keys before you add a new element.
-5. render_pdf({documentId}) saves the PDF when finished.
+5. render_pdf({documentId}) saves the PDF when finished. If no edits are needed, create_document({exampleId, output:"pdf-and-preview"}) creates, previews and saves in one call. describe_element({names:["TextBlock","Container"]}) fetches several types together. Batch related changes and avoid repeated previews without a specific correction.
 Errors explain what to fix; nothing changes when an edit fails.`;
 
 /** The smallest valid definition: one empty page with the default size and margins. */
@@ -38,6 +41,8 @@ export interface ServerOptions extends RendererOptions {
   profile?: 'full' | 'lite';
   /** Saves session documents here so handles survive restarts. */
   sessionDir?: string;
+  /** Opt-in JSONL measurements; never includes document content or image data. */
+  metricsFile?: string;
 }
 
 export function createServer(options: ServerOptions) {
@@ -72,15 +77,42 @@ export function createServer(options: ServerOptions) {
       name,
       { description: text, inputSchema, annotations: { readOnlyHint, destructiveHint: false, openWorldHint: false } },
       async (args, ctx) => {
+        const started = performance.now();
+        let response;
         try {
-          return await handler(args, ctx);
+          response = await handler(args, ctx);
         } catch (error) {
           const e = error as Error & { issues?: unknown[] };
-          return {
+          response = {
             ...result({ error: { message: e.message, ...(e.issues ? { issues: e.issues.slice(0, 25) } : {}) } }),
             isError: true,
           };
         }
+        if (options.metricsFile) {
+          const content = response.content ?? [];
+          const measurement = {
+            timestamp: new Date().toISOString(),
+            tool: name,
+            profile,
+            durationMs: Math.round(performance.now() - started),
+            inputBytes: Buffer.byteLength(JSON.stringify(args)),
+            textBytes: content
+              .filter((c: any) => c.type === 'text')
+              .reduce((n: number, c: any) => n + Buffer.byteLength(c.text), 0),
+            structuredBytes: Buffer.byteLength(JSON.stringify(response.structuredContent ?? {})),
+            imageBytes: content
+              .filter((c: any) => c.type === 'image')
+              .reduce((n: number, c: any) => n + Buffer.from(c.data, 'base64').length, 0),
+            isError: !!response.isError,
+          };
+          try {
+            await mkdir(dirname(options.metricsFile), { recursive: true });
+            await appendFile(options.metricsFile, JSON.stringify(measurement) + '\n');
+          } catch {
+            console.error('Could not write MCP measurements');
+          }
+        }
+        return response;
       }
     );
   };
@@ -125,6 +157,26 @@ export function createServer(options: ServerOptions) {
     const value = { ...rendered, documentId, revision, previews: rendered.previews!.map(({ image, ...p }) => p) };
     const base = result(value);
     return { ...base, content: [...base.content, ...images] };
+  };
+
+  const pdf = async (documentId: string, preflight: boolean, signal?: AbortSignal) => {
+    const doc = store.get(documentId);
+    const revision = doc.revision;
+    const rendered = await renderer.render(structuredClone(doc.definition), 'pdf', [0], false, signal, { preflight });
+    const response = result({ ...rendered, documentId, revision });
+    return {
+      ...response,
+      content: [
+        ...response.content,
+        {
+          type: 'resource_link' as const,
+          uri: rendered.artifact!.uri,
+          name: 'document.pdf',
+          mimeType: 'application/pdf',
+          description: rendered.artifact!.path,
+        },
+      ],
+    };
   };
 
   tool('get_capabilities', 'Get versions, available elements, catalogue counts and limits.', z.object({}), true, () =>
@@ -172,12 +224,22 @@ export function createServer(options: ServerOptions) {
   tool(
     'describe_element',
     {
-      full: 'Get definition keys and tokens for an element, object or value type (e.g. Page, Length). Add property (e.g. Page + size, HorizontalStack + children) for its exact JSON schema and constraints. Omit name to list types.',
-      lite: 'List valid keys and tokens, e.g. TextBlock or Page. Add property for exact accepted JSON values, e.g. name: "Page", property: "size". Omit name to list types.',
+      full: 'Get definition keys and tokens for an element, object or value type (e.g. Page, Length). Add property (e.g. Page + size, HorizontalStack + children) for its exact JSON schema and constraints. Supply names to fetch up to eight types in one call. Omit name to list types.',
+      lite: 'List valid keys and tokens, e.g. TextBlock or Page. Add property for exact accepted JSON values, e.g. name: "Page", property: "size". Supply names to fetch up to eight types in one call. Omit name to list types.',
     },
-    z.object({ name: z.string().max(100).default(''), property: z.string().min(1).max(100).optional() }),
+    z.object({
+      name: z.string().max(100).default(''),
+      property: z.string().min(1).max(100).optional(),
+      names: z.array(z.string().min(1).max(100)).min(1).max(8).optional(),
+    }),
     true,
-    args => result(knowledge.describe(args.name, args.property))
+    args => {
+      if (args.names) {
+        if (args.name || args.property) throw new Error('Supply names alone, or name with optional property');
+        return result({ elements: [...new Set<string>(args.names)].map(name => knowledge.describe(name)) });
+      }
+      return result(knowledge.describe(args.name, args.property));
+    }
   );
   tool(
     'get_example',
@@ -204,16 +266,21 @@ export function createServer(options: ServerOptions) {
   tool(
     'create_document',
     {
-      full: 'Create an editable session from a verified exampleId, a complete JSON definition, or blank: true for an empty A4 page. Returns a handle, revision and short outline.',
-      lite: 'Open an editable copy of an example ({exampleId}), or start an empty page ({blank: true}) and add elements to /pages/0/content/-. Returns documentId, revision and an outline.',
+      full: 'Create an editable session from a verified exampleId, a complete JSON definition, or blank: true for an empty A4 page. Returns a handle, revision and short outline (8 elements by default). Set output to preview, pdf or pdf-and-preview to create and render in one call; omit it when editing first.',
+      lite: 'Open an editable copy of an example ({exampleId}), or start an empty page ({blank: true}) and add elements to /pages/0/content/-. Returns documentId, revision and an outline. output: "preview", "pdf" or "pdf-and-preview" renders immediately in the same call.',
     },
     z.object({
       exampleId: z.string().max(100).optional(),
       definition: z.record(z.string(), z.unknown()).optional(),
       blank: z.boolean().optional(),
+      output: z.enum(['outline', 'preview', 'pdf', 'pdf-and-preview']).default('outline'),
+      outlineLimit: z.number().int().min(0).max(25).default(8),
+      pages,
+      includeImages: z.boolean().default(true),
+      scale,
     }),
     false,
-    args => {
+    async (args, ctx) => {
       if (Number(!!args.exampleId) + Number(!!args.definition) + Number(!!args.blank) !== 1)
         throw new Error('Supply exactly one of exampleId, definition or blank: true');
       let definition = args.blank ? BLANK : args.definition;
@@ -223,7 +290,48 @@ export function createServer(options: ServerOptions) {
           throw new Error(`Source-only example: ${entry.unavailable}. Use get_example to retrieve its source.`);
         definition = JSON.parse(knowledge.file(entry.definition).toString('utf8'));
       }
-      return result(store.create(definition));
+      const created = store.create(definition);
+      if (!created.valid) return result(created);
+      if (args.output === 'outline') {
+        const outline = created.outline.slice(0, args.outlineLimit);
+        return result({
+          ...created,
+          outline,
+          outlineTruncated: created.elements > outline.length,
+          ...(created.elements > outline.length
+            ? { hint: 'Use find_elements to locate other elements by text, type or ID.' }
+            : {}),
+        });
+      }
+      // Keep the handle in errors: creation has succeeded even if rendering fails.
+      try {
+        if (args.output === 'preview')
+          return await preview(created.documentId, args.pages, args.includeImages, args.scale, ctx.signal);
+        const rendered = await pdf(created.documentId, false, ctx.signal);
+        if (args.output === 'pdf') return rendered;
+        const shown = await preview(created.documentId, args.pages, args.includeImages, args.scale, ctx.signal);
+        return {
+          ...result({ ...rendered.structuredContent, preview: shown.structuredContent }),
+          content: [
+            ...rendered.content.filter(c => c.type !== 'text'),
+            ...shown.content.filter(c => c.type !== 'text'),
+            {
+              type: 'text' as const,
+              text: JSON.stringify({ ...rendered.structuredContent, preview: shown.structuredContent }),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          ...result({
+            documentId: created.documentId,
+            revision: created.revision,
+            error: { message: (error as Error).message },
+            hint: 'Creation succeeded. Inspect or patch this handle before rendering again.',
+          }),
+          isError: true,
+        };
+      }
     }
   );
   tool('list_documents', 'List open document handles with their revision and title.', z.object({}), true, () =>
@@ -327,31 +435,12 @@ export function createServer(options: ServerOptions) {
     },
     z.object({ documentId: id, preflight: z.boolean().default(false) }),
     false,
-    async (args, ctx) => {
-      const doc = store.get(args.documentId);
-      const rendered = await renderer.render(structuredClone(doc.definition), 'pdf', [0], false, ctx.signal, {
-        preflight: args.preflight,
-      });
-      const response = result({ ...rendered, documentId: args.documentId, revision: doc.revision });
-      return {
-        ...response,
-        content: [
-          ...response.content,
-          {
-            type: 'resource_link' as const,
-            uri: rendered.artifact!.uri,
-            name: 'document.pdf',
-            mimeType: 'application/pdf',
-            description: rendered.artifact!.path,
-          },
-        ],
-      };
-    }
+    (args, ctx) => pdf(args.documentId, args.preflight, ctx.signal)
   );
   tool(
     'export_definition',
-    'Save a portable JSON definition with referenced assets embedded. Returns an artifact; does not generate idiomatic source code.',
-    z.object({ documentId: id }),
+    'Export the edited document as portable JSON or native TypeScript/C# document-building code. format: json (default), typescript, dotnet or all. Returns file artifacts, not source text in context. Native exports fail explicitly for unsupported constructs.',
+    z.object({ documentId: id, format: z.enum(['json', 'typescript', 'dotnet', 'all']).default('json') }),
     false,
     async args => {
       const doc = store.get(args.documentId);
@@ -367,6 +456,48 @@ export function createServer(options: ServerOptions) {
       }
       const v = validate(definition);
       if (!v.valid) throw Object.assign(new Error('Exported definition failed validation'), { issues: v.errors });
+      if (args.format !== 'json') {
+        const formats = args.format === 'all' ? ['json', 'typescript', 'dotnet'] : [args.format];
+        // Prepare every requested format before saving: an unsupported native construct produces no partial export.
+        const files = formats.map(format =>
+          format === 'json'
+            ? { format, name: 'document.json', text: JSON.stringify(definition, null, 2), mimeType: 'application/json' }
+            : {
+                format,
+                name: format === 'dotnet' ? 'Program.cs' : 'document.ts',
+                text: new SourceExporter(knowledge, format as 'dotnet' | 'typescript').export(definition),
+                mimeType: 'text/plain',
+              }
+        );
+        const artifacts = [];
+        for (const file of files)
+          artifacts.push({ format: file.format, ...(await renderer.save(file.name, file.text, file.mimeType)) });
+        const response = result({
+          documentId: args.documentId,
+          revision: doc.revision,
+          ...(artifacts.length === 1 ? { artifact: artifacts[0] } : { artifacts }),
+          usage: {
+            typescript:
+              'Install @bonniepdf/core, compile as an ES module, then run with Node.js. The program writes document.pdf.',
+            dotnet:
+              'Create a .NET 8+ console project, add BonniePDF, replace Program.cs and run dotnet run. The program writes document.pdf.',
+          },
+          license: 'Generated programs declare Evaluation; select the tier appropriate to your application.',
+        });
+        return {
+          ...response,
+          content: [
+            ...response.content,
+            ...artifacts.map(a => ({
+              type: 'resource_link' as const,
+              uri: a.uri,
+              name: a.path.split(/[\\/]/).at(-1)!,
+              mimeType: a.mimeType,
+              description: a.path,
+            })),
+          ],
+        };
+      }
       return result({
         documentId: args.documentId,
         revision: doc.revision,

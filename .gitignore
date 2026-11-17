@@ -1,4 +1,8 @@
 node_modules/
 dist/
+/data/
 out/
 *.tgz
+
+scripts/dotnet-api/bin/
+scripts/dotnet-api/obj/

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -86,6 +86,10 @@ export class KnowledgeBase {
   private readonly docIndex: Bm25<DocEntry>;
 
   constructor(readonly root = DATA_ROOT) {
+    if (!existsSync(resolve(root, 'knowledge.json')))
+      throw new Error(
+        'Generated knowledge bundle is missing. Run pnpm mcp:build from the workspace root, or reinstall the packaged server.'
+      );
     this.data = JSON.parse(readFileSync(resolve(root, 'knowledge.json'), 'utf8'));
     this.elements = JSON.parse(readFileSync(resolve(root, 'elements.json'), 'utf8'));
     this.schema = JSON.parse(readFileSync(resolve(root, 'schema.json'), 'utf8'));

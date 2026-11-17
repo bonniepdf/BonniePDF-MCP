@@ -119,6 +119,14 @@ for (const example of examples.filter(e => !e.variantOf)) {
           : x
       );
     if (canonical(definition) !== canonical(roundTrip.definition)) throw new Error('Canonical round trip differs');
+    // A fixed clone must not turn run-specific measurements or other changing
+    // content into a reusable claim. Keep the original source for those examples.
+    const repeated = await toDefinition(example.generate(assets), {
+      onUnrepresentable: 'error',
+      resourceRef: resource => `assets/${hash(resource.bytes)}`,
+    });
+    if (canonical(definition) !== canonical(repeated.definition))
+      throw new Error('Repeated generation changes document content; run the original source for current results.');
     const pdf = await rebuilt.generateBytesAsync();
     if (pdf.length < 100 || Buffer.from(pdf.subarray(0, 5)).toString() !== '%PDF-')
       throw new Error('Invalid PDF output');
@@ -212,7 +220,11 @@ for (const [name, content] of files) {
     }
   }
 }
-for (const path of await walk(out)) {
+const existingFiles = await walk(out).catch((error: NodeJS.ErrnoException) => {
+  if (error.code === 'ENOENT') return [];
+  throw error;
+});
+for (const path of existingFiles) {
   const name = relative(out, path).replaceAll('\\', '/');
   if (!files.has(name)) {
     changed++;

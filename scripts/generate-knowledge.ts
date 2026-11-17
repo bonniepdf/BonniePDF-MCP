@@ -144,25 +144,25 @@ for (const example of examples.filter(e => !e.variantOf)) {
   console.error(`${entry.definition ? 'definition' : 'source only'}: ${entry.id}`);
 }
 
-// Consume only the generated public reference pages, not private guides or strategic prose.
+// Consume only the generated public reference pages (the API documentation repository), not private guides or
+// strategic prose. Every page there carries the generated marker; the folder index is the README.
 const docs: DocEntry[] = [];
+const referenceRepository = 'bonniepdf/BonniePDF-ApiDocumentation';
 for (const language of ['typescript', 'dotnet']) {
-  const dir = resolve(root, `BonniePDF-Website/src/pages/docs/${language}/reference`);
+  const dir = resolve(root, `BonniePDF-ApiDocumentation/${language}`);
   for (const file of await walk(dir)) {
     if (!file.endsWith('.md')) continue;
     const raw = await readFile(file, 'utf8');
-    if (!/^generated: true$/m.test(raw)) continue;
-    const slug = relative(dir, file).replaceAll('\\', '/').replace(/\.md$/, '');
-    const title = raw.match(/^title: "(.*)"$/m)?.[1] ?? slug;
-    const text = raw
-      .replace(/^---[\s\S]*?---\s*/, '')
-      .replace(/<!--[^]*?-->/g, '')
-      .trim();
+    if (!/^<!-- Generated from the doc comments in the library\./m.test(raw)) continue;
+    const name = relative(dir, file).replaceAll('\\', '/').replace(/\.md$/, '');
+    const slug = name === 'README' ? 'index' : name;
+    const title = raw.match(/^# (.*)$/m)?.[1] ?? slug;
+    const text = raw.replace(/<!--[^]*?-->/g, '').trim();
     docs.push({
       id: `${language}/${slug}`,
       title,
       language,
-      url: `https://www.bonniepdf.dev/docs/${language}/reference/${slug}`,
+      url: `https://github.com/${referenceRepository}/blob/main/${language}/${name}.md`,
       text,
     });
   }

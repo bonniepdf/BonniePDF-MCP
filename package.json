@@ -1,6 +1,6 @@
 {
   "name": "@bonniepdf/mcp",
-  "version": "2026.10.28",
+  "version": "2026.11.12",
   "private": true,
   "license": "Apache-2.0",
   "description": "Local BonniePDF authoring tools for MCP assistants",

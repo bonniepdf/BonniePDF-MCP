@@ -49,7 +49,7 @@ export class Renderer {
     readonly outDir: string,
     options: RendererOptions | string = {},
     license?: string,
-    timeoutMs?: number,
+    timeoutMs?: number
   ) {
     // The positional form (outDir, resourceDir, license, timeoutMs) is kept for callers and tests.
     const o = typeof options === 'string' ? { resourceDir: options, license, timeoutMs } : options;
@@ -67,7 +67,13 @@ export class Renderer {
     await mkdir(dir, { recursive: true });
     const path = resolve(dir, name);
     await writeFile(path, data);
-    const artifact: Artifact = { id, path, uri: `bonniepdf://artifacts/${id}`, mimeType, bytes: Buffer.byteLength(data) };
+    const artifact: Artifact = {
+      id,
+      path,
+      uri: `bonniepdf://artifacts/${id}`,
+      mimeType,
+      bytes: Buffer.byteLength(data),
+    };
     this.artifacts.set(id, artifact);
     return artifact;
   }
@@ -103,7 +109,7 @@ export class Renderer {
     pages = [0],
     includeImages = true,
     signal?: AbortSignal,
-    options: { preflight?: boolean; scale?: number } = {},
+    options: { preflight?: boolean; scale?: number } = {}
   ) {
     if (this.queued > this.maxQueued) throw new Error('Too many renders are waiting; retry after one finishes');
     this.queued++;
@@ -122,11 +128,11 @@ export class Renderer {
     pages: number[],
     includeImages: boolean,
     signal: AbortSignal | undefined,
-    options: { preflight?: boolean; scale?: number },
+    options: { preflight?: boolean; scale?: number }
   ) {
     if (Date.now() - this.lastSweep > HOUR) {
       this.lastSweep = Date.now();
-      await this.sweep().catch((error) => console.error(`Artifact cleanup failed: ${error.message}`));
+      await this.sweep().catch(error => console.error(`Artifact cleanup failed: ${error.message}`));
     }
     const rendered = await this.job({ definition, mode, pages, preflight: options.preflight }, signal);
     const report = rendered.report
@@ -149,7 +155,7 @@ export class Renderer {
       'layout.json',
       JSON.stringify({ snapshot: rendered.snapshot, report: rendered.report }),
       'application/json',
-      'preview',
+      'preview'
     );
     const previews: PreviewPage[] = [];
     const warnings: string[] = [];
@@ -169,12 +175,21 @@ export class Renderer {
           item.image = png.toString('base64');
         } catch (error) {
           if (signal?.aborted) throw new Error('Preview cancelled');
-          warnings.push(`PNG preview of page ${page.index + 1} unavailable: ${error instanceof Error ? error.message : String(error)}`);
+          warnings.push(
+            `PNG preview of page ${page.index + 1} unavailable: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
       }
       previews.push(item);
     }
-    return { pageCount: rendered.pageCount as number, previews, snapshot, report, diagnostics: rendered.diagnostics, warnings };
+    return {
+      pageCount: rendered.pageCount as number,
+      previews,
+      snapshot,
+      report,
+      diagnostics: rendered.diagnostics,
+      warnings,
+    };
   }
 
   private job(input: object, signal?: AbortSignal): Promise<any> {
@@ -198,10 +213,10 @@ export class Renderer {
       signal?.addEventListener('abort', abort, { once: true });
       if (signal?.aborted) abort();
       worker.once('message', ({ value, error }) =>
-        finish(error ? Object.assign(new Error(error.message), { issues: error.issues }) : undefined, value),
+        finish(error ? Object.assign(new Error(error.message), { issues: error.issues }) : undefined, value)
       );
-      worker.once('error', (error) => finish(error instanceof Error ? error : new Error(String(error))));
-      worker.once('exit', (code) => {
+      worker.once('error', error => finish(error instanceof Error ? error : new Error(String(error))));
+      worker.once('exit', code => {
         if (!done) finish(new Error(`Render worker exited (${code})`));
       });
     });

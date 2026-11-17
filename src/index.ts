@@ -69,6 +69,6 @@ if (values.help) {
       }
       return createServer(options);
     },
-    { onerror: (error) => console.error(error.message) },
+    { onerror: error => console.error(error.message) }
   );
 }

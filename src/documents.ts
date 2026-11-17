@@ -61,7 +61,12 @@ export function elements(definition: unknown): ElementNode[] {
     if (!value || typeof value !== 'object') return;
     if (typeof value.type === 'string') {
       const text = textOf(value);
-      nodes.push({ id: value.id, type: value.type, pointer, ...(text ? { text: text.length > 60 ? text.slice(0, 57) + '…' : text } : {}) });
+      nodes.push({
+        id: value.id,
+        type: value.type,
+        pointer,
+        ...(text ? { text: text.length > 60 ? text.slice(0, 57) + '…' : text } : {}),
+      });
     }
     for (const [key, child] of Object.entries(value)) walk(child, `${pointer}/${escapeKey(key)}`);
   };
@@ -159,7 +164,10 @@ export class DocumentStore {
     }
     // Write then rename, so a crash never leaves a half-written document.
     const temp = `${path}.${process.pid}.tmp`;
-    writeFileSync(temp, JSON.stringify({ revision: doc.revision, savedAt: new Date().toISOString(), definition: doc.definition }));
+    writeFileSync(
+      temp,
+      JSON.stringify({ revision: doc.revision, savedAt: new Date().toISOString(), definition: doc.definition })
+    );
     renameSync(temp, path);
   }
 
@@ -205,14 +213,19 @@ export class DocumentStore {
   read(id: string, pointer = '') {
     const doc = this.get(id);
     const resolved = resolvePointer(doc.definition, pointer);
-    return { documentId: id, revision: doc.revision, pointer: resolved, value: structuredClone(pointerValue(doc.definition, resolved)) };
+    return {
+      documentId: id,
+      revision: doc.revision,
+      pointer: resolved,
+      value: structuredClone(pointerValue(doc.definition, resolved)),
+    };
   }
 
   find(id: string, query: FindQuery) {
     const doc = this.get(id);
     const text = query.text?.toLowerCase();
     const type = query.type?.toLowerCase();
-    const matches = elements(doc.definition).filter((node) => {
+    const matches = elements(doc.definition).filter(node => {
       if (query.id && node.id !== query.id) return false;
       if (type && node.type.toLowerCase() !== type) return false;
       if (text) {
@@ -222,20 +235,30 @@ export class DocumentStore {
       return true;
     });
     const limit = query.limit ?? 20;
-    return { documentId: id, revision: doc.revision, total: matches.length, matches: matches.slice(0, limit), truncated: matches.length > limit };
+    return {
+      documentId: id,
+      revision: doc.revision,
+      total: matches.length,
+      matches: matches.slice(0, limit),
+      truncated: matches.length > limit,
+    };
   }
 
   patch(id: string, revision: number, operations: Patch[]) {
     const current = this.get(id);
     if (current.revision !== revision) {
-      throw new Error(`Revision conflict: expected ${revision}, current ${current.revision}. Re-read with get_document and retry.`);
+      throw new Error(
+        `Revision conflict: expected ${revision}, current ${current.revision}. Re-read with get_document and retry.`
+      );
     }
     const candidate = structuredClone(current.definition);
     for (const [i, op] of operations.entries()) {
       try {
         applyPatch(candidate, op);
       } catch (error) {
-        throw new Error(`Operation ${i} (${op.op} ${op.path}): ${(error as Error).message}. No operations were applied.`);
+        throw new Error(
+          `Operation ${i} (${op.op} ${op.path}): ${(error as Error).message}. No operations were applied.`
+        );
       }
     }
     assignIds(candidate);
@@ -252,12 +275,13 @@ export class DocumentStore {
 
 function parts(pointer: string) {
   if (pointer === '') return [];
-  if (!pointer.startsWith('/') || /~(?![01])/u.test(pointer)) throw new Error('Expected an RFC 6901 JSON Pointer or #elementId/…');
+  if (!pointer.startsWith('/') || /~(?![01])/u.test(pointer))
+    throw new Error('Expected an RFC 6901 JSON Pointer or #elementId/…');
   const keys = pointer
     .slice(1)
     .split('/')
-    .map((k) => k.replaceAll('~1', '/').replaceAll('~0', '~'));
-  if (keys.some((k) => ['__proto__', 'prototype', 'constructor'].includes(k))) throw new Error('Unsafe pointer key');
+    .map(k => k.replaceAll('~1', '/').replaceAll('~0', '~'));
+  if (keys.some(k => ['__proto__', 'prototype', 'constructor'].includes(k))) throw new Error('Unsafe pointer key');
   return keys;
 }
 
@@ -270,7 +294,7 @@ export function resolvePointer(root: unknown, pointer: string) {
   const slash = pointer.indexOf('/');
   const id = slash < 0 ? pointer.slice(1) : pointer.slice(1, slash);
   const rest = slash < 0 ? '' : pointer.slice(slash);
-  const found = elements(root).filter((n) => n.id === id);
+  const found = elements(root).filter(n => n.id === id);
   if (!found.length) throw new Error(`No element has id '${id}'`);
   if (found.length > 1) throw new Error(`Element id '${id}' is not unique; use a JSON Pointer`);
   return found[0].pointer + rest;
@@ -324,7 +348,7 @@ const deepEqual = (a: unknown, b: unknown): boolean => {
   if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
   const ka = Object.keys(a);
   const kb = Object.keys(b);
-  return ka.length === kb.length && ka.every((k) => Object.hasOwn(b, k) && deepEqual((a as any)[k], (b as any)[k]));
+  return ka.length === kb.length && ka.every(k => Object.hasOwn(b, k) && deepEqual((a as any)[k], (b as any)[k]));
 };
 
 function applyPatch(root: any, op: Patch) {

@@ -8,8 +8,8 @@ export const MAX_PREVIEW_WIDTH = 2000;
 export const MAX_PREVIEW_HEIGHT = 3000;
 
 const FONT_DIR = resolve(dirname(fileURLToPath(import.meta.resolve('@bonniepdf/core/package.json'))), 'assets/fonts');
-const LIBERATION = ['Sans', 'Serif', 'Mono'].flatMap((family) =>
-  ['Regular', 'Bold', 'Italic', 'BoldItalic'].map((face) => resolve(FONT_DIR, `Liberation${family}-${face}.ttf`)),
+const LIBERATION = ['Sans', 'Serif', 'Mono'].flatMap(family =>
+  ['Regular', 'Bold', 'Italic', 'BoldItalic'].map(face => resolve(FONT_DIR, `Liberation${family}-${face}.ttf`))
 );
 
 /**
@@ -24,7 +24,7 @@ const LIBERATION = ['Sans', 'Serif', 'Mono'].flatMap((family) =>
 export async function rasterizeSvgPages(
   svgs: readonly string[],
   fontFaceCss: string,
-  options: { scale?: number; signal?: AbortSignal } = {},
+  options: { scale?: number; signal?: AbortSignal } = {}
 ): Promise<Buffer[]> {
   const scale = options.scale ?? 1;
   const faces = parseFontFaces(fontFaceCss);
@@ -58,7 +58,7 @@ export async function rasterizeSvgPages(
           },
           logLevel: 'off',
         },
-        options.signal,
+        options.signal
       );
       pngs.push(image.asPng());
     }

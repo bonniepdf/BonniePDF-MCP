@@ -10,8 +10,12 @@ const BUNDLE_FILE =
 
 /** Lower-cases, splits on non-alphanumerics and folds simple plurals ("tables" → "table"). */
 export function tokenize(text: string) {
-  return (text.toLowerCase().match(/[a-z0-9]+/g) ?? []).map((t) =>
-    t.length > 3 && t.endsWith('ies') ? t.slice(0, -3) + 'y' : t.length > 3 && t.endsWith('s') && !t.endsWith('ss') ? t.slice(0, -1) : t,
+  return (text.toLowerCase().match(/[a-z0-9]+/g) ?? []).map(t =>
+    t.length > 3 && t.endsWith('ies')
+      ? t.slice(0, -3) + 'y'
+      : t.length > 3 && t.endsWith('s') && !t.endsWith('ss')
+        ? t.slice(0, -1)
+        : t
   );
 }
 
@@ -28,7 +32,7 @@ class Bm25<T> {
   private readonly df = new Map<string, number>();
   private readonly avgLength: number;
   constructor(items: readonly T[], fields: (item: T) => [text: string, weight: number][]) {
-    this.docs = items.map((item) => {
+    this.docs = items.map(item => {
       const tf = new Map<string, number>();
       let length = 0;
       for (const [text, weight] of fields(item)) {
@@ -66,7 +70,7 @@ class Bm25<T> {
 /** Returns about `size` characters of `text` around the first query term, on word boundaries. */
 export function excerptAround(text: string, terms: string[], size = 280) {
   const lower = text.toLowerCase();
-  const hit = terms.map((t) => lower.indexOf(t)).filter((i) => i >= 0);
+  const hit = terms.map(t => lower.indexOf(t)).filter(i => i >= 0);
   if (!hit.length || Math.min(...hit) < size / 2) return text.slice(0, size).trim() + (text.length > size ? '…' : '');
   let start = Math.max(0, Math.min(...hit) - Math.floor(size / 3));
   const space = text.indexOf(' ', start);
@@ -87,18 +91,21 @@ export class KnowledgeBase {
     const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.json'), 'utf8')) as Record<string, string>;
     for (const [name, expected] of Object.entries(manifest)) {
       const actual = createHash('sha256').update(this.file(name)).digest('hex');
-      if (actual !== expected) throw new Error(`Knowledge file ${name} differs from its generated manifest. Regenerate the bundle.`);
+      if (actual !== expected)
+        throw new Error(`Knowledge file ${name} differs from its generated manifest. Regenerate the bundle.`);
     }
-    const version = JSON.parse(readFileSync(fileURLToPath(import.meta.resolve('@bonniepdf/core/package.json')), 'utf8')).version;
+    const version = JSON.parse(
+      readFileSync(fileURLToPath(import.meta.resolve('@bonniepdf/core/package.json')), 'utf8')
+    ).version;
     if (version !== this.data.coreVersion) {
       throw new Error(`Knowledge bundle is for core ${this.data.coreVersion}, installed ${version}. Regenerate it.`);
     }
-    this.exampleIndex = new Bm25(this.data.examples, (e) => [
+    this.exampleIndex = new Bm25(this.data.examples, e => [
       [`${e.id} ${e.name}`, 3],
       [`${e.documentType ?? ''} ${e.capabilities.join(' ')} ${e.category}`, 2],
       [`${e.description} ${e.industries.join(' ')}`, 1],
     ]);
-    this.docIndex = new Bm25(this.data.docs, (d) => [
+    this.docIndex = new Bm25(this.data.docs, d => [
       [`${d.title} ${d.id}`, 3],
       [d.text, 1],
     ]);
@@ -110,9 +117,9 @@ export class KnowledgeBase {
   }
 
   example(id: string) {
-    const entry = this.data.examples.find((e) => e.id === id);
+    const entry = this.data.examples.find(e => e.id === id);
     if (!entry) {
-      const near = this.search(id.replace(/-/g, ' '), 'examples', 3).results.map((r) => r.id);
+      const near = this.search(id.replace(/-/g, ' '), 'examples', 3).results.map(r => r.id);
       throw new Error(`Unknown example: ${id}.${near.length ? ` Did you mean ${near.join(', ')}?` : ''}`);
     }
     return entry;
@@ -122,7 +129,7 @@ export class KnowledgeBase {
     const terms = [...new Set(tokenize(query))];
     const results: { score: number; [key: string]: unknown }[] = [];
     if (kind !== 'docs') {
-      for (const { item: e, score } of this.exampleIndex.search(terms, (e) => !editableOnly || !!e.definition)) {
+      for (const { item: e, score } of this.exampleIndex.search(terms, e => !editableOnly || !!e.definition)) {
         results.push({
           score,
           kind: 'example',
@@ -136,8 +143,16 @@ export class KnowledgeBase {
       }
     }
     if (kind !== 'examples') {
-      for (const { item: d, score } of this.docIndex.search(terms, (d) => !language || d.language === language)) {
-        results.push({ score, kind: 'doc', id: d.id, title: d.title, language: d.language, url: d.url, excerpt: excerptAround(d.text, terms) });
+      for (const { item: d, score } of this.docIndex.search(terms, d => !language || d.language === language)) {
+        results.push({
+          score,
+          kind: 'doc',
+          id: d.id,
+          title: d.title,
+          language: d.language,
+          url: d.url,
+          excerpt: excerptAround(d.text, terms),
+        });
       }
     }
     const sorted = results.sort((a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id)));
@@ -149,7 +164,9 @@ export class KnowledgeBase {
     const shape = d.elements?.[name] ?? d.shapes?.[name] ?? d.objects?.[name];
     if (!shape) {
       const all = [...Object.keys(d.elements ?? {}), ...Object.keys(d.shapes ?? {}), ...Object.keys(d.objects ?? {})];
-      const near = name ? all.filter((n) => n.toLowerCase() === name.toLowerCase() || n.toLowerCase().includes(name.toLowerCase())) : [];
+      const near = name
+        ? all.filter(n => n.toLowerCase() === name.toLowerCase() || n.toLowerCase().includes(name.toLowerCase()))
+        : [];
       return {
         ...(name ? { error: `Unknown element or shape: ${name}`, didYouMean: near.slice(0, 5) } : {}),
         availableElements: Object.keys(d.elements ?? {}),

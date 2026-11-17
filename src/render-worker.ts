@@ -23,7 +23,10 @@ const job = workerData as {
  * silently fall back to Helvetica.
  */
 export async function registerFonts(dataDir: string) {
-  const liberation = resolve(dirname(fileURLToPath(import.meta.resolve('@bonniepdf/core/package.json'))), 'assets/fonts');
+  const liberation = resolve(
+    dirname(fileURLToPath(import.meta.resolve('@bonniepdf/core/package.json'))),
+    'assets/fonts'
+  );
   for (const [file, family] of [
     ['Sans', 'liberation sans'],
     ['Serif', 'liberation serif'],
@@ -36,7 +39,11 @@ export async function registerFonts(dataDir: string) {
       ['BoldItalic', 'bolditalic'],
     ]) {
       const bytes = await readFile(resolve(liberation, `Liberation${file}-${suffix}.ttf`));
-      FontManager.registerFont(bytes, { family, subfamily, identifier: `/fonts/liberation/Liberation${file}-${suffix}.ttf` });
+      FontManager.registerFont(bytes, {
+        family,
+        subfamily,
+        identifier: `/fonts/liberation/Liberation${file}-${suffix}.ttf`,
+      });
     }
   }
   const bundled = resolve(dataDir, 'fonts');
@@ -51,7 +58,7 @@ export function pdfPageCount(bytes: Uint8Array): number | undefined {
   const text = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('latin1');
   const counts = [
     ...text.matchAll(/\/Type\s*\/Pages\b[^>]*?\/Count\s+(\d+)|\/Count\s+(\d+)[^>]*?\/Type\s*\/Pages\b/g),
-  ].map((m) => Number(m[1] ?? m[2]));
+  ].map(m => Number(m[1] ?? m[2]));
   return counts.length ? Math.max(...counts) : undefined;
 }
 
@@ -82,7 +89,12 @@ async function run() {
   };
   const options = { strict: true, limits: LIMITS, resources };
   const diagnostic = (entries: readonly any[]) =>
-    entries.map(({ severity, category, message, source }) => ({ severity, category, message, ...(source ? { source } : {}) }));
+    entries.map(({ severity, category, message, source }) => ({
+      severity,
+      category,
+      message,
+      ...(source ? { source } : {}),
+    }));
 
   if (job.mode === 'pdf') {
     const doc = await fromDefinition(job.definition, options);
@@ -106,12 +118,12 @@ async function run() {
   const doc = await fromDefinition(job.definition, options);
   const rendered = await doc.generateSvgDocumentAsync({ captureLayout: true, maxPages: LIMITS.pages + 1 });
   if (rendered.pages.length > LIMITS.pages) throw new Error(`Rendered document exceeds ${LIMITS.pages} pages`);
-  if (job.pages.some((p) => p >= rendered.pages.length)) {
+  if (job.pages.some(p => p >= rendered.pages.length)) {
     throw new Error(`Page index out of range; document has ${rendered.pages.length} pages`);
   }
   return {
     pageCount: rendered.pages.length,
-    pages: job.pages.map((index) => ({ index, svg: rendered.pages[index] })),
+    pages: job.pages.map(index => ({ index, svg: rendered.pages[index] })),
     fontFaceCss: rendered.fontFaceCss,
     snapshot: rendered.snapshot,
     report: rendered.report,
@@ -121,6 +133,6 @@ async function run() {
 
 if (parentPort) {
   run()
-    .then((value) => parentPort!.postMessage({ value }))
-    .catch((error) => parentPort!.postMessage({ error: { message: error.message, issues: error.issues } }));
+    .then(value => parentPort!.postMessage({ value }))
+    .catch(error => parentPort!.postMessage({ error: { message: error.message, issues: error.issues } }));
 }

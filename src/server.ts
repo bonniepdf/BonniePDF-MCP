@@ -6,7 +6,7 @@ import { Renderer, type RendererOptions } from './render.js';
 
 export const GUIDE = `BonniePDF authors documents from a tree of elements, not HTML. Use search_docs to find a recipe or finished design. get_example returns source or JSON on demand; create_document(exampleId) clones a verified definition without sending it through the conversation. create_document(definition) accepts a new definition, and create_document(blank: true) starts an empty page. Handles last for this server connection unless the host enables persistence; list_documents shows them.
 Locate elements with find_elements (by text, type or ID) rather than reading the whole tree. Every path accepts an RFC 6901 JSON Pointer or #elementId/rest, e.g. #mcp-4/text. Read only what you need with get_document; edit with patch_document (add, remove, replace, move, copy, test) and its current revision. patch_and_preview edits and renders in one call. IDs added by the host link body elements to layout sourceId. Page chrome is outside the layout snapshot tree.
-Use describe_element for exact keys, nested shapes and tokens. JSON keys are case-sensitive. validate_definition uses BonniePDF's strict semantic validator, not only JSON Schema. preview_definition returns page count, advisory accessibility findings, selected SVG/PNG artifacts and optionally images. Inspect the selected preview before finalising; a valid definition does not guarantee the requested content or attractive layout. render_pdf produces an artifact, never executable code. export_definition saves the JSON and its external resource files for reuse. Resources resolve only from the bundle or the host's configured resource directory. Passwords are not stored in definitions; encrypted source examples are source-only.
+Use describe_element for exact keys, nested shapes and tokens; add property to inspect accepted JSON values and constraints without reading the whole schema. Page sizes use lowercase tokens such as "a4"; numeric lengths are points. To center a fixed-size design on a page, use an outer Container with fillHeight: true, horizontalAlignment: "center", verticalAlignment: "middle", and a child Container with explicit width and height. Rotate wraps native content: use angle: 90 or -90 and mode: "constrained" for sideways labels; contentWidth fixes the unrotated width. Free rotation keeps its original flow box, so provide clearance. Rotation is atomic and cannot contain page breaks. JSON keys are case-sensitive. validate_definition uses BonniePDF's strict semantic validator, not only JSON Schema. preview_definition returns page count, advisory accessibility findings, selected SVG/PNG artifacts and optionally images. Inspect the selected preview before finalising; a valid definition does not guarantee the requested content or attractive layout. render_pdf produces an artifact, never executable code. export_definition saves the JSON and its external resource files for reuse. Resources resolve only from the bundle or the host's configured resource directory. Passwords are not stored in definitions; encrypted source examples are source-only.
 Many source examples use callbacks unavailable in JSON. The server labels these source-only rather than dropping content. Retrieve their TypeScript/C# source when writing code examples. It does not generate idiomatic TypeScript/C# source from arbitrary definitions, nor claim full PDF/A/PDF/UA compliance from advisory preflight. Use external validation where required.
 For economical authoring, search summaries first, clone by example ID, patch only changed values, retrieve short documentation sections, and preview at most the pages needed. Content and tool responses still enter the connected assistant's context.`;
 
@@ -172,12 +172,12 @@ export function createServer(options: ServerOptions) {
   tool(
     'describe_element',
     {
-      full: 'Get exact definition keys, defaults, constraints and enum tokens for an element or nested shape. Omit name to list elements.',
-      lite: 'List the valid keys of an element type, e.g. "TextBlock" or "Table". Omit name to list element types.',
+      full: 'Get definition keys and tokens for an element, object or value type (e.g. Page, Length). Add property (e.g. Page + size, HorizontalStack + children) for its exact JSON schema and constraints. Omit name to list types.',
+      lite: 'List valid keys and tokens, e.g. TextBlock or Page. Add property for exact accepted JSON values, e.g. name: "Page", property: "size". Omit name to list types.',
     },
-    z.object({ name: z.string().max(100).default('') }),
+    z.object({ name: z.string().max(100).default(''), property: z.string().min(1).max(100).optional() }),
     true,
-    args => result(knowledge.describe(args.name))
+    args => result(knowledge.describe(args.name, args.property))
   );
   tool(
     'get_example',

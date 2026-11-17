@@ -81,12 +81,14 @@ export function excerptAround(text: string, terms: string[], size = 280) {
 export class KnowledgeBase {
   readonly data: Knowledge;
   readonly elements: Record<string, any>;
+  readonly schema: Record<string, any>;
   private readonly exampleIndex: Bm25<ExampleEntry>;
   private readonly docIndex: Bm25<DocEntry>;
 
   constructor(readonly root = DATA_ROOT) {
     this.data = JSON.parse(readFileSync(resolve(root, 'knowledge.json'), 'utf8'));
     this.elements = JSON.parse(readFileSync(resolve(root, 'elements.json'), 'utf8'));
+    this.schema = JSON.parse(readFileSync(resolve(root, 'schema.json'), 'utf8'));
     if (this.data.format !== 1) throw new Error('Unsupported knowledge bundle format');
     const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.json'), 'utf8')) as Record<string, string>;
     for (const [name, expected] of Object.entries(manifest)) {
@@ -159,9 +161,38 @@ export class KnowledgeBase {
     return { total: sorted.length, results: sorted.slice(0, limit) };
   }
 
-  describe(name: string) {
+  describe(name: string, property?: string) {
     const d = this.elements;
     const shape = d.elements?.[name] ?? d.shapes?.[name] ?? d.objects?.[name];
+    const schema = Object.hasOwn(this.schema.$defs, name) ? this.schema.$defs[name] : undefined;
+    if (property !== undefined) {
+      const field = Object.hasOwn(schema?.properties ?? {}, property) ? schema.properties[property] : undefined;
+      if (!field) throw new Error(`Unknown property: ${name}.${property}. Use describe_element({name}) to list keys.`);
+      const resolved =
+        field.$ref?.startsWith('#/$defs/') && field.$ref !== '#/$defs/Element'
+          ? (this.schema.$defs[field.$ref.slice('#/$defs/'.length)] ?? field)
+          : field;
+      const refs = [
+        ...new Set<string>([...JSON.stringify(resolved).matchAll(/"\$ref":"#\/\$defs\/([^"/]+)"/g)].map(m => m[1])),
+      ];
+      // Keep recursive element unions out of focused responses. Their concrete
+      // types are discoverable separately, without retransmitting the catalogue.
+      const definitions = Object.fromEntries(
+        refs.filter(ref => ref !== 'Element').map(ref => [ref, this.schema.$defs[ref]])
+      );
+      return {
+        name,
+        property,
+        required: schema.required?.includes(property) ?? false,
+        schema: resolved,
+        ...(Object.keys(definitions).length ? { $defs: definitions } : {}),
+        ...(refs.includes('Element')
+          ? { elementHint: 'Use describe_element({name}) for the concrete element type.' }
+          : {}),
+        definitionVersion: this.data.definitionVersion,
+      };
+    }
+    if (!shape && schema) return { name, schema, definitionVersion: this.data.definitionVersion };
     if (!shape) {
       const all = [...Object.keys(d.elements ?? {}), ...Object.keys(d.shapes ?? {}), ...Object.keys(d.objects ?? {})];
       const near = name
@@ -171,6 +202,8 @@ export class KnowledgeBase {
         ...(name ? { error: `Unknown element or shape: ${name}`, didYouMean: near.slice(0, 5) } : {}),
         availableElements: Object.keys(d.elements ?? {}),
         availableShapes: Object.keys(d.shapes ?? {}),
+        availableObjects: Object.keys(d.objects ?? {}),
+        availableValueTypes: Object.keys(this.schema.$defs ?? {}).filter(n => !all.includes(n) && n !== 'Element'),
       };
     }
     const keys = Object.assign({}, ...(shape.uses ?? []).map((use: string) => d.mixins[use]), shape.keys);
@@ -181,6 +214,14 @@ export class KnowledgeBase {
         tokens[enumName] = d.enums?.[enumName];
       }
     }
-    return { name, ...shape, keys, tokens, definitionVersion: this.data.definitionVersion };
+    const propertyTypes = Object.fromEntries(
+      Object.entries(schema?.properties ?? {}).flatMap(([key, value]: [string, any]) =>
+        value.$ref?.startsWith('#/$defs/') ? [[key, value.$ref.slice('#/$defs/'.length)]] : []
+      )
+    );
+    if (Object.values(propertyTypes).includes('PageSize')) {
+      tokens.PageSize = { tokens: this.schema.$defs.PageSize.oneOf.find((v: any) => v.enum)?.enum };
+    }
+    return { name, ...shape, keys, tokens, propertyTypes, definitionVersion: this.data.definitionVersion };
   }
 }

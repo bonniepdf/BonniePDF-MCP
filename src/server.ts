@@ -5,7 +5,7 @@ import { DocumentStore, validate } from './documents.js';
 import { Renderer, type RendererOptions } from './render.js';
 import { appendFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { SourceExporter } from './source-export.js';
+import { SourceExporter, embedBundleResources } from './source-export.js';
 
 export const GUIDE = `BonniePDF authors documents from a tree of elements, not HTML. Use search_docs to find a recipe or finished design. get_example returns source or JSON on demand; create_document(exampleId) clones a verified definition without sending it through the conversation. create_document(definition) accepts a new definition, and create_document(blank: true) starts an empty page. Handles last for this server connection unless the host enables persistence; list_documents shows them.
 Locate elements with find_elements (by text, type or ID) rather than reading the whole tree. Every path accepts an RFC 6901 JSON Pointer or #elementId/rest, e.g. #mcp-4/text. Read only what you need with get_document; edit with patch_document (add, remove, replace, move, copy, test) and its current revision. patch_and_preview edits and renders in one call. IDs added by the host link body elements to layout sourceId. Page chrome is outside the layout snapshot tree.
@@ -444,16 +444,8 @@ export function createServer(options: ServerOptions) {
     false,
     async args => {
       const doc = store.get(args.documentId);
-      const definition = structuredClone(doc.definition);
       // Bundled assets can be exported without exposing large base64 payloads to the model.
-      for (const resource of Object.values(definition.resources ?? {}) as any[]) {
-        if (resource.ref) {
-          if (!/^assets\/[a-f0-9]{64}$/.test(resource.ref))
-            throw new Error('Export currently embeds bundle resources only; custom references remain host-dependent');
-          resource.data = knowledge.file(resource.ref).toString('base64');
-          delete resource.ref;
-        }
-      }
+      const definition = embedBundleResources(structuredClone(doc.definition), knowledge);
       const v = validate(definition);
       if (!v.valid) throw Object.assign(new Error('Exported definition failed validation'), { issues: v.errors });
       if (args.format !== 'json') {

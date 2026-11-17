@@ -10,6 +10,22 @@ const pascal = (s: string) => s[0].toUpperCase() + s.slice(1);
 const normal = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
 const quote = (s: string) => JSON.stringify(s).replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029');
 
+/**
+ * Replaces each bundled asset reference in `definition.resources` with its base64 data, in place.
+ * Exports carry their resources inline; the model never sees the payload. A reference outside the
+ * bundle throws, because its bytes depend on the host.
+ */
+export function embedBundleResources(definition: Obj, knowledge: KnowledgeBase): Obj {
+  for (const resource of Object.values(definition.resources ?? {}) as Obj[]) {
+    if (!resource.ref) continue;
+    if (!/^assets\/[a-f0-9]{64}$/.test(resource.ref))
+      throw new Error('Export currently embeds bundle resources only; custom references remain host-dependent');
+    resource.data = knowledge.file(resource.ref).toString('base64');
+    delete resource.ref;
+  }
+  return definition;
+}
+
 /** A deterministic native-code writer. It never executes submitted source. */
 export class SourceExporter {
   private readonly d: any;

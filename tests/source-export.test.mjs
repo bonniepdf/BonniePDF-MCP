@@ -4,12 +4,14 @@ import { mkdtemp, readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { KnowledgeBase } from '../dist/knowledge.js';
-import { SourceExporter } from '../dist/source-export.js';
+import { SourceExporter, embedBundleResources } from '../dist/source-export.js';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
 const knowledge = new KnowledgeBase();
-const invoice = () => JSON.parse(knowledge.file(knowledge.example('business-invoice').definition));
+// The invoice carries a bundled SVG logo, so embed it as export_definition does.
+const invoice = () =>
+  embedBundleResources(JSON.parse(knowledge.file(knowledge.example('business-invoice').definition)), knowledge);
 for (const language of ['typescript', 'dotnet']) {
   test(`${language}: native export is deterministic, reflects edits and quotes user content`, () => {
     const definition = invoice();

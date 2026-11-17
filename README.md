@@ -119,7 +119,9 @@ Packaging regenerates the knowledge bundle and compiles the server before stagin
 
 The build produces `out/releases/<unique-build>/BonniePDFMCPSetup-<version>-x64.exe`, a portable payload, a dependency lock and a release manifest with hashes. `out/releases/latest.json` identifies the latest successful build. Builds are unsigned; apply the release signing process before public distribution. The Inno AppId is stable across upgrades and must not change.
 
-Installer banners use the BonniePDF website logo with its blue-to-green hero gradient and contour lines. The Windows build renders the artwork at four times the wizard's logical dimensions. Edit `installer/bonniepdf-logo.svg` or `scripts/generate-installer-artwork.mjs`, then run `pnpm --filter @bonniepdf/mcp generate:installer-artwork` to refresh the committed BMP files.
+Installer banners use the BonniePDF website logo with its blue-to-green hero gradient and contour lines. Editable Photoshop sources are `installer/banner-side.psd` (656 × 1256) and `installer/banner-top.psd` (1988 × 232). They contain separate gradient glows, contour lines and an embedded SVG logo. The side banner also has an editable title layer. The top banner spans the full header width, with the installer page title drawn over it.
+
+After editing a PSD, export a flattened, 24-bit RGB BMP at the same pixel dimensions to its matching file in `installer/`. The build uses those committed BMP exports. The optional `generate:installer-artwork` command recreates the initial artwork from the website assets and overwrites the BMP files.
 
 `test:installer` installs outside the source tree, tests four disposable client configurations with global Node removed from PATH, repairs the installation and uninstalls it. It refuses to run if a real BonniePDF MCP installation is already registered. Reports remain in `out/installer-test-latest.json` and the returned temporary test directory.
 

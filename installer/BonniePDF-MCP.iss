@@ -27,9 +27,10 @@ OutputDir={#InstallerOutput}
 OutputBaseFilename=BonniePDFMCPSetup-{#AppVersion}-x64
 ; Editable wizard artwork, stretched by Inno if the sizes change:
 ; Rendered from the website logo and hero artwork at 4x resolution.
-; Logical sizes: side 164x314 (left of wizard pages), top 55x58 (top right).
+; Logical sizes: side 164x314, full-width header 497x58.
 WizardImageFile=banner-side.bmp
 WizardSmallImageFile=banner-top.bmp
+WizardKeepAspectRatio=no
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -68,6 +69,45 @@ Name: "{group}\Uninstall BonniePDF MCP"; Filename: "{uninstallexe}"
 [Code]
 var
   ConnectionsFailed: Boolean;
+  HeaderTitle: TLabel;
+  HeaderDescription: TLabel;
+
+procedure InitializeWizard;
+begin
+  WizardForm.WizardSmallBitmapImage.SetBounds(0, 0,
+    WizardForm.MainPanel.ClientWidth, WizardForm.MainPanel.ClientHeight);
+  WizardForm.WizardSmallBitmapImage.Anchors := [akLeft, akTop, akRight, akBottom];
+  WizardForm.WizardSmallBitmapImage.Stretch := True;
+  WizardForm.WizardSmallBitmapImage.Center := False;
+  WizardForm.WizardSmallBitmapImage.SendToBack;
+
+  HeaderTitle := TLabel.Create(WizardForm);
+  HeaderTitle.Parent := WizardForm.MainPanel;
+  HeaderTitle.SetBounds(WizardForm.PageNameLabel.Left, WizardForm.PageNameLabel.Top,
+    WizardForm.PageNameLabel.Width, WizardForm.PageNameLabel.Height);
+  HeaderTitle.AutoSize := False;
+  HeaderTitle.Transparent := True;
+  HeaderTitle.Font.Assign(WizardForm.PageNameLabel.Font);
+  HeaderTitle.Anchors := WizardForm.PageNameLabel.Anchors;
+  WizardForm.PageNameLabel.Visible := False;
+
+  HeaderDescription := TLabel.Create(WizardForm);
+  HeaderDescription.Parent := WizardForm.MainPanel;
+  HeaderDescription.SetBounds(WizardForm.PageDescriptionLabel.Left, WizardForm.PageDescriptionLabel.Top,
+    WizardForm.PageDescriptionLabel.Width, WizardForm.PageDescriptionLabel.Height);
+  HeaderDescription.AutoSize := False;
+  HeaderDescription.Transparent := True;
+  HeaderDescription.WordWrap := True;
+  HeaderDescription.Font.Assign(WizardForm.PageDescriptionLabel.Font);
+  HeaderDescription.Anchors := WizardForm.PageDescriptionLabel.Anchors;
+  WizardForm.PageDescriptionLabel.Visible := False;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  HeaderTitle.Caption := WizardForm.PageNameLabel.Caption;
+  HeaderDescription.Caption := WizardForm.PageDescriptionLabel.Caption;
+end;
 
 function RunManagement(const Arguments: String; const ReportName: String): Boolean;
 var

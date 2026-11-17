@@ -52,7 +52,7 @@ const hero = `
 await mkdir(new URL('../out/installer-artwork/', import.meta.url), { recursive: true });
 for (const [name, width, height, mark, x, y] of [
   ['banner-side', 164, 314, 120, 22, 48],
-  ['banner-top', 55, 58, 40, 7.5, 9],
+  ['banner-top', 497, 58, 40, 443, 9],
 ]) {
   const title = name === 'banner-side'
     ? '<text x="82" y="196" text-anchor="middle" fill="#243b53" font-family="Segoe UI, sans-serif" font-size="17" font-weight="600">BonniePDF</text>'
@@ -86,5 +86,39 @@ for (const [name, width, height, mark, x, y] of [
   }
   await writeFile(new URL('../installer/' + name + '.bmp', import.meta.url), bitmap);
   await writeFile(new URL('../out/installer-artwork/' + name + '.png', import.meta.url), image.asPng());
+  if (process.argv.includes('--layers')) {
+    const directory = new URL('../out/installer-artwork/' + name + '-layers/', import.meta.url);
+    await mkdir(directory, { recursive: true });
+    const fragments = {
+      '01-base': '<rect width="1440" height="900" fill="#f3f7fb"/>',
+      '02-blue-glow': '<circle cx="160" cy="120" r="520" fill="url(#blue)"/>',
+      '03-teal-glow': '<circle cx="1320" cy="140" r="560" fill="url(#teal)"/>',
+      '04-green-glow': '<circle cx="1180" cy="860" r="620" fill="url(#green)"/>',
+      '05-azure-glow': '<circle cx="200" cy="900" r="480" fill="url(#azure)"/>',
+      '06-contour-lines': '<g fill="none" stroke="#475569" stroke-width="2" opacity=".22" mask="url(#contours)">' + contours + '</g>',
+    };
+    const definitions = hero.match(/<defs>[\s\S]*?<\/defs>/)[0];
+    for (const [layerName, fragment] of Object.entries(fragments)) {
+      const content = '<svg width="' + width + '" height="' + height +
+        '" viewBox="0 0 1440 900" preserveAspectRatio="none">' + definitions + fragment + '</svg>';
+      const layer = new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="' + width * 4 +
+        '" height="' + height * 4 + '" viewBox="0 0 ' + width + ' ' + height + '">' + content + '</svg>').render();
+      await writeFile(new URL(layerName + '.png', directory), layer.asPng());
+    }
+    const logoLayer = new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="' + mark * 4 +
+      '" height="' + mark * 4 + '"><image href="data:image/svg+xml;base64,' + logo +
+      '" width="' + mark * 4 + '" height="' + mark * 4 + '"/></svg>').render();
+    await writeFile(new URL('07-logo.png', directory), logoLayer.asPng());
+    if (title) {
+      const titleLayer = new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="' + width * 4 +
+        '" height="' + height * 4 + '" viewBox="0 0 ' + width + ' ' + height + '">' + title + '</svg>').render();
+      await writeFile(new URL('08-title.png', directory), titleLayer.asPng());
+    }
+    await writeFile(new URL('layout.json', directory), JSON.stringify({
+      width: width * 4, height: height * 4,
+      logo: { x: x * 4, y: y * 4, size: mark * 4 },
+      title: name === 'banner-side' ? { text: 'BonniePDF', x: 328, y: 784, fontSize: 68 } : null,
+    }, null, 2));
+  }
   console.log(name + ': ' + image.width + ' × ' + image.height);
 }

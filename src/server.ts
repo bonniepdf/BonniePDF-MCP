@@ -4,7 +4,7 @@ import { KnowledgeBase } from './knowledge.js';
 import { DocumentStore, validate } from './documents.js';
 import { Renderer, type RendererOptions } from './render.js';
 
-export const GUIDE = `BonniePDF authors documents from a tree of elements, not HTML. Use search_docs to find a recipe or finished design. get_example returns source or JSON on demand; create_document(exampleId) clones a verified definition without sending it through the conversation. create_document(definition) accepts a new definition. Handles last for this server connection unless the host enables persistence; list_documents shows them.
+export const GUIDE = `BonniePDF authors documents from a tree of elements, not HTML. Use search_docs to find a recipe or finished design. get_example returns source or JSON on demand; create_document(exampleId) clones a verified definition without sending it through the conversation. create_document(definition) accepts a new definition, and create_document(blank: true) starts an empty page. Handles last for this server connection unless the host enables persistence; list_documents shows them.
 Locate elements with find_elements (by text, type or ID) rather than reading the whole tree. Every path accepts an RFC 6901 JSON Pointer or #elementId/rest, e.g. #mcp-4/text. Read only what you need with get_document; edit with patch_document (add, remove, replace, move, copy, test) and its current revision. patch_and_preview edits and renders in one call. IDs added by the host link body elements to layout sourceId. Page chrome is outside the layout snapshot tree.
 Use describe_element for exact keys, nested shapes and tokens. JSON keys are case-sensitive. validate_definition uses BonniePDF's strict semantic validator, not only JSON Schema. preview_definition returns page count, advisory accessibility findings, selected SVG/PNG artifacts and optionally images. Inspect the selected preview before finalising; a valid definition does not guarantee the requested content or attractive layout. render_pdf produces an artifact, never executable code. export_definition saves the JSON and its external resource files for reuse. Resources resolve only from the bundle or the host's configured resource directory. Passwords are not stored in definitions; encrypted source examples are source-only.
 Many source examples use callbacks unavailable in JSON. The server labels these source-only rather than dropping content. Retrieve their TypeScript/C# source when writing code examples. It does not generate idiomatic TypeScript/C# source from arbitrary definitions, nor claim full PDF/A/PDF/UA compliance from advisory preflight. Use external validation where required.
@@ -12,12 +12,15 @@ For economical authoring, search summaries first, clone by example ID, patch onl
 
 /** A shorter guide for small local models, matching the lite tool set. */
 export const LITE_GUIDE = `You build PDFs with BonniePDF. Workflow:
-1. search_docs("invoice") finds an editable example; create_document({exampleId}) opens it and returns a documentId, revision and outline.
+1. search_docs("invoice") finds an editable example; create_document({exampleId}) opens it and returns a documentId, revision and outline. For a new document, create_document({blank: true}) and add elements to "/pages/0/content/-".
 2. find_elements({documentId, text:"..."}) finds the element to change. Paths may be "#<elementId>/<key>", e.g. "#mcp-4/text".
 3. patch_and_preview({documentId, revision, operations:[{op:"replace", path:"#mcp-4/text", value:"New text"}]}) applies edits, then shows the page. Always pass the latest revision.
 4. describe_element("TextBlock") lists valid keys before you add a new element.
 5. render_pdf({documentId}) saves the PDF when finished.
 Errors explain what to fix; nothing changes when an edit fails.`;
+
+/** The smallest valid definition: one empty page with the default size and margins. */
+const BLANK = { version: 1, minorVersion: 0, metadata: { title: 'Untitled' }, pages: [{ content: [] }] };
 
 const LITE_TOOLS = new Set([
   'search_docs',
@@ -201,15 +204,19 @@ export function createServer(options: ServerOptions) {
   tool(
     'create_document',
     {
-      full: 'Create an editable session from either a verified exampleId or a complete JSON definition. Returns a handle, revision and short outline.',
-      lite: 'Open an editable copy of an example ({exampleId}) or a new definition ({definition}). Returns documentId, revision and an outline.',
+      full: 'Create an editable session from a verified exampleId, a complete JSON definition, or blank: true for an empty A4 page. Returns a handle, revision and short outline.',
+      lite: 'Open an editable copy of an example ({exampleId}), or start an empty page ({blank: true}) and add elements to /pages/0/content/-. Returns documentId, revision and an outline.',
     },
-    z.object({ exampleId: z.string().max(100).optional(), definition: z.record(z.string(), z.unknown()).optional() }),
+    z.object({
+      exampleId: z.string().max(100).optional(),
+      definition: z.record(z.string(), z.unknown()).optional(),
+      blank: z.boolean().optional(),
+    }),
     false,
     args => {
-      if (Number(!!args.exampleId) + Number(!!args.definition) !== 1)
-        throw new Error('Supply exactly one of exampleId or definition');
-      let definition = args.definition;
+      if (Number(!!args.exampleId) + Number(!!args.definition) + Number(!!args.blank) !== 1)
+        throw new Error('Supply exactly one of exampleId, definition or blank: true');
+      let definition = args.blank ? BLANK : args.definition;
       if (args.exampleId) {
         const entry = knowledge.example(args.exampleId);
         if (!entry.definition)

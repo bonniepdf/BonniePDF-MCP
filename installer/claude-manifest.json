@@ -1,0 +1,20 @@
+{
+  "manifest_version": "0.3",
+  "name": "bonniepdf",
+  "display_name": "BonniePDF",
+  "description": "Create, edit, preview, and render BonniePDF documents locally.",
+  "author": { "name": "CodeFocus", "url": "https://www.bonniepdf.dev" },
+  "license": "Apache-2.0",
+  "server": {
+    "type": "node",
+    "entry_point": "node_modules/@bonniepdf/mcp/dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/node_modules/@bonniepdf/mcp/dist/index.js"]
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": { "node": ">=24" }
+  }
+}

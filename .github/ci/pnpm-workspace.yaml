@@ -1,0 +1,6 @@
+packages:
+  - BonniePDF-TypeScript/core
+  - BonniePDF-TypeScript/examples
+  - BonniePDF-MCP
+allowBuilds:
+  esbuild: true

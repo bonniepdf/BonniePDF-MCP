@@ -121,6 +121,18 @@ The build produces `out/releases/<unique-build>/BonniePDFMCPSetup-<version>-x64.
 
 `test:installer` installs outside the source tree, tests four disposable client configurations with global Node removed from PATH, repairs the installation and uninstalls it. It refuses to run if a real BonniePDF MCP installation is already registered. Reports remain in `out/installer-test-latest.json` and the returned temporary test directory.
 
+## CI and public downloads
+
+GitHub Actions builds on Linux and Windows for pull requests and pushes to `master`. The workflow tests a clean Windows install, repair and uninstall, and runs the packaged Claude Desktop extension's server diagnostics on Windows and macOS. The tested downloads are available as Actions artifacts.
+
+A tag matching the package version, such as `v2026.11.12`, runs the same checks before publishing the three downloads at the latest GitHub release. Use a new tag for each release. The `release` environment can sign the installer via `WINDOWS_SIGNING_PFX_BASE64` and `WINDOWS_SIGNING_PASSWORD`. If explicitly distributing an unsigned installer, set `ALLOW_UNSIGNED_WINDOWS_INSTALLER` to `true` in that environment. Tagged releases verify the public website links and run diagnostics from the published npm tarball.
+
+The website uses the same package tarball for its command-based connections:
+
+```sh
+npx -y --package https://github.com/bonniepdf/BonniePDF-MCP/releases/latest/download/bonniepdf-mcp.tgz bonniepdf-mcp
+```
+
 ## Build and verify
 
 Clone the TypeScript and MCP repositories as siblings using Node 24 or later and pnpm 11 or later.

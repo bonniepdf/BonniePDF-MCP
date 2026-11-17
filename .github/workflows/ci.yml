@@ -1,0 +1,220 @@
+name: CI and releases
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24.21.0'
+  PNPM_VERSION: '11.22.0'
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: BonniePDF-MCP
+          persist-credentials: false
+
+      - uses: actions/checkout@v7
+        with:
+          repository: bonniepdf/BonniePDF-TypeScript
+          ref: 8a567527d359ee773129be134dcd1a4a57fd8525 # v2026.11.13
+          path: BonniePDF-TypeScript
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          architecture: x64
+          package-manager-cache: false
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          package_json_file: BonniePDF-MCP/package.json
+
+      - name: Assemble the source workspace
+        shell: bash
+        run: |
+          printf '{"private":true}\n' > package.json
+          cp BonniePDF-MCP/.github/ci/pnpm-workspace.yaml .
+          cp BonniePDF-MCP/.github/ci/pnpm-lock.yaml .
+          pnpm install --frozen-lockfile
+
+      - name: Check the release tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          version=$(node -p "require('./BonniePDF-MCP/package.json').version")
+          [[ "$GITHUB_REF_NAME" == "v$version" ]]
+
+      - name: Build and test the source checkout
+        shell: bash
+        run: |
+          pnpm --filter @bonniepdf/core build
+          pnpm --filter @bonniepdf/mcp build
+          pnpm --filter @bonniepdf/mcp typecheck
+          pnpm --filter @bonniepdf/mcp test
+          pnpm --filter @bonniepdf/mcp smoke
+          pnpm --filter @bonniepdf/mcp check:knowledge
+
+      - name: Pack and test the installable package
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p assets
+          pnpm --filter @bonniepdf/mcp --config.ignore-scripts=true pack --out "$PWD/assets/bonniepdf-mcp.tgz"
+          export BONNIEPDF_MCP_HOME="$RUNNER_TEMP/bonniepdf-doctor"
+          npx --yes --package "$PWD/assets/bonniepdf-mcp.tgz" bonniepdf-mcp doctor
+
+      - name: Package the Claude Desktop extension
+        if: runner.os == 'Linux'
+        run: npm --prefix BonniePDF-MCP run package:claude -- "$PWD/assets/bonniepdf-mcp.tgz" "$PWD/assets/bonniepdf.mcpb"
+
+      - name: Build, install, repair and uninstall on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          pnpm --filter @bonniepdf/mcp package:windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm --filter @bonniepdf/mcp test:installer
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $manifest = Get-Content -Raw BonniePDF-MCP/out/releases/latest.json | ConvertFrom-Json
+          New-Item -ItemType Directory -Path assets | Out-Null
+          Copy-Item -LiteralPath $manifest.installer -Destination assets/BonniePDFMCPSetup-x64.exe
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ runner.os == 'Windows' && 'windows-installer' || 'npm-and-claude' }}
+          path: assets/
+          if-no-files-found: error
+
+  test-claude:
+    name: Test the Claude Desktop bundle on ${{ matrix.os }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-and-claude
+      - name: Run diagnostics from the packaged extension
+        shell: bash
+        run: |
+          export BONNIEPDF_MCP_HOME="$RUNNER_TEMP/bonniepdf-doctor"
+          npx -y --package @anthropic-ai/mcpb@2.1.2 mcpb unpack bonniepdf.mcpb unpacked
+          entry=$(node -p "require('./unpacked/manifest.json').server.entry_point")
+          node "unpacked/$entry" doctor
+
+  release:
+    name: Publish GitHub release
+    needs: [build, test-claude]
+    if: github.ref_type == 'tag'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    concurrency: bonniepdf-mcp-github-release
+    permissions:
+      contents: write
+    environment: release
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Sign and verify the installer
+        if: vars.ALLOW_UNSIGNED_WINDOWS_INSTALLER != 'true'
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (!$env:SIGNING_PFX_BASE64) { throw 'Configure Windows code signing in the release environment.' }
+          $password = ConvertTo-SecureString $env:SIGNING_PASSWORD -AsPlainText -Force
+          $pfx = Join-Path $env:RUNNER_TEMP 'installer-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+          try {
+            $certificate = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password |
+              Where-Object HasPrivateKey | Select-Object -First 1
+          } finally {
+            Remove-Item -LiteralPath $pfx -Force
+          }
+          if (!$certificate) { throw 'The signing bundle did not contain a certificate with a private key.' }
+          $installer = 'assets/BonniePDFMCPSetup-x64.exe'
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (!$signtool) { throw 'Windows SDK SignTool is missing' }
+          & $signtool sign /sha1 $certificate.Thumbprint /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $signtool verify /pa /tw $installer
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish the tested downloads
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UNSIGNED: ${{ vars.ALLOW_UNSIGNED_WINDOWS_INSTALLER == 'true' }}
+        run: |
+          files=(assets/bonniepdf-mcp.tgz assets/bonniepdf.mcpb assets/BonniePDFMCPSetup-x64.exe)
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # A retry after publication checks the existing release instead of replacing its assets.
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > published.txt
+            for file in "${files[@]}"; do
+              grep -Fxq "$(basename "$file")" published.txt
+            done
+          else
+            notes='Includes the Windows installer, Claude Desktop bundle, and npm package tarball.'
+            if [[ "$UNSIGNED" == 'true' ]]; then
+              notes="$notes The Windows installer is unsigned and Windows may show an unknown-publisher warning."
+            fi
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --latest --title "BonniePDF MCP ${GITHUB_REF_NAME#v}" --notes "$notes"
+          fi
+
+  verify-public:
+    name: Verify public website downloads
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Check the live pages, downloads, and npm launch command
+        shell: bash
+        run: |
+          base="https://github.com/$GITHUB_REPOSITORY/releases/latest/download"
+          for route in typescript dotnet; do
+            page=$(curl --fail --silent --show-error --location "https://www.bonniepdf.dev/features/$route/mcp-server")
+            grep -Fq "$base/BonniePDFMCPSetup-x64.exe" <<< "$page"
+            grep -Fq "$base/bonniepdf.mcpb" <<< "$page"
+          done
+          for file in BonniePDFMCPSetup-x64.exe bonniepdf.mcpb; do
+            curl --fail --silent --show-error --location --head --retry 3 "$base/$file" >/dev/null
+          done
+          export BONNIEPDF_MCP_HOME="$RUNNER_TEMP/bonniepdf-doctor"
+          npx --yes --package "$base/bonniepdf-mcp.tgz" bonniepdf-mcp doctor

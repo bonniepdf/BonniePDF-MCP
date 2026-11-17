@@ -11,16 +11,26 @@
   "files": [
     "dist",
     "data",
-    "README.md"
+    "README.md",
+    "scripts/ollama-agent.mjs",
+    "scripts/eval-models.mjs",
+    "scripts/eval-support.mjs",
+    "evals"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "package:windows": "node scripts/package-windows.mjs",
+    "test:installer": "node scripts/test-installer.mjs",
+    "build": "pnpm run generate:knowledge && pnpm run build:code",
+    "build:code": "tsc -p tsconfig.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "generate:knowledge": "tsx scripts/generate-knowledge.ts",
     "check:knowledge": "tsx scripts/generate-knowledge.ts --check",
     "start": "node dist/index.js",
     "test": "node --test tests/*.test.mjs",
     "smoke": "node scripts/smoke.mjs",
+    "verify:native": "node scripts/verify-native-exports.mjs",
+    "benchmark:efficiency": "node scripts/benchmark-efficiency.mjs",
     "format": "prettier --write src scripts tests config",
     "format:check": "prettier --check src scripts tests config",
     "ollama": "node scripts/ollama-agent.mjs",
@@ -31,13 +41,15 @@
   },
   "dependencies": {
     "@bonniepdf/core": "workspace:*",
+    "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/server": "2.3.1",
     "@resvg/resvg-js": "2.6.2",
+    "jsonc-parser": "3.3.1",
+    "smol-toml": "1.9.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@bonniepdf/examples": "workspace:*",
-    "@modelcontextprotocol/client": "2.3.1",
     "@types/node": "26.6.1",
     "prettier": "3.9.5",
     "tsx": "^4.23.12",

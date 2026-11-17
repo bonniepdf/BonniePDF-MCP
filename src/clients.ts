@@ -15,6 +15,7 @@ export const CLIENTS = [
   'vscode',
   'visual-studio',
   'copilot-cli',
+  'zcode',
 ] as const;
 export type ClientId = (typeof CLIENTS)[number];
 export type Scope = 'user' | 'project';
@@ -80,6 +81,7 @@ export function connectionFile(options: ConnectionOptions, context: SetupContext
     if (options.client === 'antigravity') return join(project, '.agents', 'mcp_config.json');
     if (options.client === 'vscode') return join(project, '.vscode', 'mcp.json');
     if (options.client === 'visual-studio' || options.client === 'copilot-cli') return join(project, '.mcp.json');
+    if (options.client === 'zcode') return join(project, '.zcode', 'config.json');
     throw new Error('Claude Desktop uses user scope.');
   }
   if (options.client === 'codex') return join(context.codexHome ?? join(context.home, '.codex'), 'config.toml');
@@ -88,6 +90,7 @@ export function connectionFile(options: ConnectionOptions, context: SetupContext
   if (options.client === 'visual-studio') return join(context.home, '.mcp.json');
   if (options.client === 'copilot-cli')
     return join(context.copilotHome ?? join(context.home, '.copilot'), 'mcp-config.json');
+  if (options.client === 'zcode') return join(context.home, '.zcode', 'cli', 'config.json');
   if (options.client === 'vscode') {
     const base =
       context.platform === 'win32'
@@ -121,15 +124,16 @@ export function connectionEntry(options: ConnectionOptions, context: SetupContex
   if (options.client === 'codex') Object.assign(entry, { startup_timeout_sec: 30, tool_timeout_sec: 120 });
   if (options.client === 'vscode' || options.client === 'visual-studio') entry.type = 'stdio';
   if (options.client === 'copilot-cli') Object.assign(entry, { type: 'local', tools: ['*'] });
+  if (options.client === 'zcode') Object.assign(entry, { type: 'stdio', timeoutMs: 120000 });
   return entry;
 }
 
-export function serverNamespace(client: ClientId): string {
-  return client === 'codex'
-    ? 'mcp_servers'
-    : client === 'vscode' || client === 'visual-studio'
-      ? 'servers'
-      : 'mcpServers';
+/** ZCode nests its servers under `mcp.servers`; every other client uses one top-level key. */
+export function serverNamespace(client: ClientId): readonly string[] {
+  if (client === 'codex') return ['mcp_servers'];
+  if (client === 'vscode' || client === 'visual-studio') return ['servers'];
+  if (client === 'zcode') return ['mcp', 'servers'];
+  return ['mcpServers'];
 }
 
 function object(value: unknown): value is Record<string, any> {
@@ -139,22 +143,45 @@ function object(value: unknown): value is Record<string, any> {
 function equivalent(left: unknown, right: unknown): boolean {
   return isDeepStrictEqual(structuredClone(left), structuredClone(right));
 }
-function parse(text: string, toml: boolean, namespace = toml ? 'mcp_servers' : 'mcpServers'): Record<string, any> {
+/** Walk a namespace path; a defined but non-object segment is invalid configuration. */
+function namespaceAt(value: Record<string, any>, namespace: readonly string[]): Record<string, any> | undefined {
+  let node: unknown = value;
+  for (const key of namespace) {
+    if (node === undefined) return undefined;
+    if (!object(node)) throw new Error('The MCP servers setting must be an object.');
+    node = node[key];
+  }
+  if (node === undefined) return undefined;
+  if (!object(node)) throw new Error('The MCP servers setting must be an object.');
+  return node;
+}
+function parse(
+  text: string,
+  toml: boolean,
+  namespace: readonly string[] = toml ? ['mcp_servers'] : ['mcpServers']
+): Record<string, any> {
   const errors: ParseError[] = [];
   const value = toml
     ? parseToml(text, { integersAsBigInt: 'asNeeded' })
     : parseJson(text || '{}', errors, { allowTrailingComma: true });
   if (errors.length || !object(value))
     throw new Error('Client configuration is not a valid object. Repair it before connecting BonniePDF.');
-  const servers = value[namespace];
-  if (servers !== undefined && !object(servers)) throw new Error('The MCP servers setting must be an object.');
+  namespaceAt(value, namespace);
   return value;
 }
-function withoutEntry(value: Record<string, any>, namespace: string) {
+function withoutEntry(value: Record<string, any>, namespace: readonly string[]) {
   const copy = structuredClone(value);
-  if (object(copy[namespace])) {
-    delete copy[namespace].bonniepdf;
-    if (!Object.keys(copy[namespace]).length) delete copy[namespace];
+  const chain: Record<string, any>[] = [copy];
+  for (const key of namespace) {
+    const next = chain[chain.length - 1][key];
+    if (!object(next)) break;
+    chain.push(next);
+  }
+  if (chain.length === namespace.length + 1) {
+    delete chain[chain.length - 1].bonniepdf;
+    for (let depth = namespace.length; depth > 0 && !Object.keys(chain[depth]).length; depth--) {
+      delete chain[depth - 1][namespace[depth - 1]];
+    }
   }
   return copy;
 }
@@ -168,7 +195,7 @@ export function editConfiguration(text: string, client: ClientId, entry?: Record
   if (!toml) {
     next = applyEdits(
       text || '{}\n',
-      modify(text || '{}\n', [namespace, 'bonniepdf'], entry, {
+      modify(text || '{}\n', [...namespace, 'bonniepdf'], entry, {
         formattingOptions: { insertSpaces: !/^\t/m.test(text), tabSize: 2, eol: text.includes('\r\n') ? '\r\n' : '\n' },
       })
     );
@@ -199,7 +226,7 @@ export function editConfiguration(text: string, client: ClientId, entry?: Record
   const after = parse(next, toml, namespace);
   if (
     !isDeepStrictEqual(withoutEntry(before, namespace), withoutEntry(after, namespace)) ||
-    !equivalent(after[namespace]?.bonniepdf, entry)
+    !equivalent(namespaceAt(after, namespace)?.bonniepdf, entry)
   ) {
     throw new Error(
       'Cannot safely edit this configuration format. No settings were changed. Use the config command to merge the entry manually.'
@@ -252,9 +279,8 @@ export function configureClient(options: ConnectionOptions, context: SetupContex
   const entry = connectionEntry(options, context);
   const original = read(file);
   const all = records(context);
-  const existing = parse(original, options.client === 'codex', serverNamespace(options.client))[
-    serverNamespace(options.client)
-  ]?.bonniepdf;
+  const namespace = serverNamespace(options.client);
+  const existing = namespaceAt(parse(original, options.client === 'codex', namespace), namespace)?.bonniepdf;
   const previous = all.find(item => item.file === file && item.client === options.client);
   if (existing && !equivalent(existing, entry) && !equivalent(existing, previous?.entry) && !options.replace) {
     throw new Error(
@@ -266,7 +292,7 @@ export function configureClient(options: ConnectionOptions, context: SetupContex
     ? atomicWrite(file, original, editConfiguration(original, options.client, entry), true)
     : undefined;
   saveRecords(context, [
-    ...all.filter(item => !(item.file === file && serverNamespace(item.client) === serverNamespace(options.client))),
+    ...all.filter(item => !(item.file === file && serverNamespace(item.client).join('.') === namespace.join('.'))),
     { file, client: options.client, entry, installation: context.entryPoint },
   ]);
   return {
@@ -296,9 +322,8 @@ export function removeConnections(options: Partial<ConnectionOptions>, context: 
     }
     try {
       const original = read(record.file);
-      const current = parse(original, record.client === 'codex', serverNamespace(record.client))[
-        serverNamespace(record.client)
-      ]?.bonniepdf;
+      const namespace = serverNamespace(record.client);
+      const current = namespaceAt(parse(original, record.client === 'codex', namespace), namespace)?.bonniepdf;
       if (current === undefined) {
         results.push({ file: record.file, removed: false, message: 'Already removed.' });
         continue;
@@ -329,16 +354,16 @@ export function removeConnections(options: Partial<ConnectionOptions>, context: 
 
 export function formattedConnection(options: ConnectionOptions, context: SetupContext = defaultContext()) {
   const entry = connectionEntry(options, context);
-  return options.client === 'codex'
-    ? stringifyToml({ mcp_servers: { bonniepdf: entry } })
-    : JSON.stringify({ [serverNamespace(options.client)]: { bonniepdf: entry } }, null, 2);
+  if (options.client === 'codex') return stringifyToml({ mcp_servers: { bonniepdf: entry } });
+  let nested: Record<string, unknown> = { bonniepdf: entry };
+  for (const key of [...serverNamespace(options.client)].reverse()) nested = { [key]: nested };
+  return JSON.stringify(nested, null, 2);
 }
 
 export function connectionStatus(options: ConnectionOptions, context: SetupContext = defaultContext()) {
   const file = connectionFile(options, context);
-  const value = parse(read(file), options.client === 'codex', serverNamespace(options.client))[
-    serverNamespace(options.client)
-  ]?.bonniepdf;
+  const namespace = serverNamespace(options.client);
+  const value = namespaceAt(parse(read(file), options.client === 'codex', namespace), namespace)?.bonniepdf;
   const expected = connectionEntry(options, context);
   const status =
     value === undefined

@@ -32,6 +32,7 @@ function put(file, text) {
   writeFileSync(file, text);
 }
 const read = path => readFileSync(path, 'utf8');
+const at = (value, path) => path.reduce((node, key) => node?.[key], value);
 
 for (const client of CLIENTS) {
   test(`${client} setup preserves existing settings, is repeatable and removes only its entry`, () => {
@@ -39,11 +40,12 @@ for (const client of CLIENTS) {
     const options = { client };
     const file = connectionFile(options, context);
     const namespace = serverNamespace(client);
+    const nested = namespace.reduceRight((inner, key) => `"${key}": {${inner}}`, '"other": {"command": "other"}');
     put(
       file,
       client === 'codex'
         ? '# Keep this comment\nmodel="example"\n[mcp_servers.other]\ncommand="other"\n'
-        : `{\n  // Keep this comment\n  "theme": "dark",\n  "${namespace}": {"other": {"command": "other"}}\n}\n`
+        : `{\n  // Keep this comment\n  "theme": "dark",\n  ${nested}\n}\n`
     );
     const original = read(file);
     const result = configureClient(options, context);
@@ -54,13 +56,13 @@ for (const client of CLIENTS) {
     assert.equal(configureClient(options, context).changed, false);
     assert.equal(readdirSync(dirname(file)).filter(name => name.endsWith('.bak')).length, 1);
     const parsed = client === 'codex' ? toml(read(file)) : json(read(file));
-    assert.deepEqual(structuredClone(parsed[namespace].bonniepdf), connectionEntry(options, context));
+    assert.deepEqual(structuredClone(at(parsed, namespace).bonniepdf), connectionEntry(options, context));
     const marker = join(context.stateDir, 'retained-document.pdf');
     put(marker, 'user document');
     assert.equal(removeConnections({}, context)[0].removed, true);
     const remaining = client === 'codex' ? toml(read(file)) : json(read(file));
-    assert.equal(remaining[namespace].other.command, 'other');
-    assert.equal(remaining[namespace].bonniepdf, undefined);
+    assert.equal(at(remaining, namespace).other.command, 'other');
+    assert.equal(at(remaining, namespace).bonniepdf, undefined);
     assert.ok(existsSync(marker));
     assert.equal(connectionStatus(options, context).status, 'missing');
   });
@@ -106,7 +108,7 @@ test('project scope uses a separate config and session directory', () => {
   const context = fixture();
   const projectDir = join(context.home, 'Project');
   mkdirSync(projectDir);
-  for (const client of ['codex', 'claude-code', 'antigravity', 'vscode', 'visual-studio', 'copilot-cli']) {
+  for (const client of ['codex', 'claude-code', 'antigravity', 'vscode', 'visual-studio', 'copilot-cli', 'zcode']) {
     const clientProject = join(projectDir, client);
     mkdirSync(clientProject);
     const user = { client },
@@ -201,6 +203,28 @@ test('quoted TOML tables and nested fields preserve the other server and comment
   assert.equal(toml(edited).mcp_servers.bonniepdf.command, 'new');
   assert.equal(toml(edited).mcp_servers.other.command, 'retained');
   assert.ok(edited.includes('# title'));
+});
+
+test('ZCode nests its entry under mcp.servers in ~/.zcode/cli/config.json', () => {
+  const context = fixture();
+  const options = { client: 'zcode' };
+  assert.equal(connectionFile(options, context), join(context.home, '.zcode', 'cli', 'config.json'));
+  assert.equal(
+    connectionFile({ ...options, scope: 'project', projectDir: context.home }, context),
+    join(context.home, '.zcode', 'config.json')
+  );
+  const entry = connectionEntry(options, context);
+  assert.equal(entry.type, 'stdio');
+  const result = configureClient(options, context);
+  const parsed = json(read(result.file));
+  assert.deepEqual(structuredClone(parsed.mcp.servers.bonniepdf), entry);
+  assert.equal(connectionStatus(options, context).status, 'configured');
+  const edited = { ...parsed, mcp: { servers: { ...parsed.mcp.servers, other: { command: 'other' } } } };
+  put(result.file, JSON.stringify(edited));
+  assert.equal(removeConnections({ client: 'zcode' }, context)[0].removed, true);
+  const remaining = json(read(result.file));
+  assert.equal(remaining.mcp.servers.other.command, 'other');
+  assert.equal(remaining.mcp.servers.bonniepdf, undefined);
 });
 
 test('Antigravity detects the legacy file but refuses ambiguous locations', () => {

@@ -9,7 +9,7 @@ The assistant writes the content and edits. BonniePDF measures, paginates and re
 The Inno Setup installer includes the compiled server, its matching core and knowledge bundle, production dependencies and a verified Node.js runtime. End users do not need Git, pnpm, a source checkout or a separate Node.js installation.
 
 1. Run `BonniePDFMCPSetup-<version>-x64.exe`. It installs for the current user without administrator rights.
-2. Select Codex, Claude Code, Claude Desktop, Antigravity or GitHub Copilot (VS Code, Visual Studio or CLI) on the connection page. Existing unrelated servers and client settings are preserved. Replacing an existing BonniePDF entry requires selecting the replacement option; configuration backups are saved beside the original file.
+2. Select Codex, Claude Code, Claude Desktop, Antigravity, ZCode or GitHub Copilot (VS Code, Visual Studio or CLI) on the connection page. Existing unrelated servers and client settings are preserved. Replacing an existing BonniePDF entry requires selecting the replacement option; configuration backups are saved beside the original file.
 3. Restart or reconnect the selected client and approve the server if the client requests it.
 4. Ask the assistant to find an editable invoice and create a PDF.
 
@@ -25,7 +25,7 @@ For terminal use, open the installation directory and run:
 .\bonniepdf-mcp.cmd remove --client codex
 ```
 
-`setup` with no client opens an interactive selector. Supported IDs are `codex`, `claude-code`, `claude-desktop`, `antigravity`, `vscode`, `visual-studio` and `copilot-cli`; `--client all` configures all seven targets. Claude Desktop uses user scope. `--config-file` selects an explicit client file, including an Antigravity installation with multiple configuration locations. `--replace` replaces only the existing BonniePDF entry after creating a backup.
+`setup` with no client opens an interactive selector. Supported IDs are `codex`, `claude-code`, `claude-desktop`, `antigravity`, `vscode`, `visual-studio`, `copilot-cli` and `zcode`; `--client all` configures all eight targets. Claude Desktop uses user scope. `--config-file` selects an explicit client file, including an Antigravity installation with multiple configuration locations. `--replace` replaces only the existing BonniePDF entry after creating a backup.
 
 The doctor checks the bundled runtime, MCP handshake, knowledge integrity, validation, native PNG previews, PDF generation and JSON export. With `--client`, it also reports whether that client's launch configuration matches the installation. It does not claim the assistant has approved or connected to the server.
 
@@ -55,6 +55,22 @@ Restart/reconnect the selected client, select its agent mode and enable BonniePD
 Configuration references: [VS Code](https://code.visualstudio.com/docs/agents/reference/mcp-configuration), [Visual Studio](https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers), [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers).
 
 Automated tests cover these configuration formats, backups and removal. Interactive authoring in each Copilot application needs a separate client check; configuration tests alone do not establish that compatibility.
+
+## ZCode setup
+
+The installer has a **ZCode** checkbox, and the terminal command is the same as other clients:
+
+```powershell
+.\bonniepdf-mcp.cmd setup --client zcode
+.\bonniepdf-mcp.cmd doctor --client zcode
+```
+
+| Scope   | Configuration                  | Server object |
+| ------- | ------------------------------ | ------------- |
+| User    | `~/.zcode/cli/config.json`     | `mcp.servers` |
+| Project | `<project>/.zcode/config.json` | `mcp.servers` |
+
+ZCode nests its server entries under `mcp.servers` rather than a single top-level key, and both scopes connect automatically at session start. Registration preserves unrelated settings and follows the same backup and removal rules as other clients.
 
 ## Ollama and smaller-model benchmarks
 
@@ -99,7 +115,7 @@ pnpm --filter @bonniepdf/mcp package:windows
 pnpm --filter @bonniepdf/mcp test:installer
 ```
 
-Packaging regenerates the knowledge bundle and compiles the server before staging. It requires Windows x64, Node.js 24+ with pnpm, and Inno Setup 6. Set `ISCC_PATH` if the compiler is outside the standard locations. Production dependencies are installed in an isolated staging workspace, never deployed over the development workspace. The Node executable is checked against its upstream SHA-256, and its complete licence is included.
+Packaging regenerates the knowledge bundle and compiles the server before staging. It requires Windows x64, Node.js 24+ with pnpm, and Inno Setup 6.3+. Set `ISCC_PATH` if the compiler is outside the standard locations. Production dependencies are installed in an isolated staging workspace, never deployed over the development workspace. The Node executable is checked against its upstream SHA-256, and its complete licence is included.
 
 The build produces `out/releases/<unique-build>/BonniePDFMCPSetup-<version>-x64.exe`, a portable payload, a dependency lock and a release manifest with hashes. `out/releases/latest.json` identifies the latest successful build. Builds are unsigned; apply the release signing process before public distribution. The Inno AppId is stable across upgrades and must not change.
 

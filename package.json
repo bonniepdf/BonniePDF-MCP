@@ -2,7 +2,7 @@
   "name": "@bonniepdf/mcp",
   "version": "0.2.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "description": "Local BonniePDF authoring tools for MCP assistants",
   "type": "module",
   "bin": {

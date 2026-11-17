@@ -137,10 +137,15 @@ Such example changes belong in the shared example catalogue and corresponding .N
 - **Documentation freshness needs the normal generation pipeline:** the MCP consumes 652 already-generated public API reference pages. Bundle hashes detect file changes and the installed core version is checked at startup, but neither proves that a page's prose accurately describes an API change. Regenerate the public reference first, then regenerate/check MCP knowledge.
 - **Token savings are still unmeasured:** cloning by ID and returning a short patch acknowledgement avoid retransmitting complete definitions. The smoke report records text character counts, not model tokens, reasoning usage or image costs. A fair benchmark must compare accepted documents of equivalent quality in the intended client.
 
-The package is private and `UNLICENSED`; public distribution and its licensing have not been selected.
+The package is licensed under the [Apache-2.0](LICENSE) license.
 
 ### Native transforms
 
 Use `Flip` with `horizontal` and/or `vertical` to mirror a native subtree inside its original box. Use `Translate` with signed `x` / `y` lengths to move painted content: positive x moves right, positive y moves down. Both retain flow dimensions and accept optional positive `contentWidth`. Provide space for translated content. They compose with `Rotate`, preserve native PDF/SVG content, and transform links and layout snapshots. All three wrappers are atomic and reject page breaks.
 
 Use `Rotate` for sideways labels and angled native content. `angle` is clockwise degrees; `mode: "constrained"` accepts quarter turns and swaps layout dimensions, while `mode: "free"` retains the original flow box. Set `contentWidth` to control the child width before rotation. Rotation keeps the subtree on one page and rejects page breaks. `describe_element({ name: "Rotate" })` exposes the accepted JSON keys; previews and PDFs preserve native text and transformed link bounds.
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
+

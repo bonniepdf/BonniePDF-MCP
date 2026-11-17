@@ -6,4 +6,4 @@ Use pnpm from the estate root. Build core before this package. Generate the know
 
 stdout belongs to MCP. Log to stderr. Render untrusted definitions in bounded workers. Do not evaluate source submitted by a tool caller. Resource paths are host-configured; definitions never grant filesystem or network access. Edits must be atomic and revision-checked.
 
-The package is private and UNLICENSED until its distribution and licensing have been decided. Do not publish or change the governing library licences.
+The package is licensed under Apache-2.0. Do not publish or change the governing library licences.

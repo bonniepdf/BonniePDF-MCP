@@ -1,0 +1,27 @@
+[
+  {
+    "id": "invoice-metadata-title",
+    "prompt": "Open the business invoice example. Set the PDF's metadata title (not the visible heading) to \"October Services\", then save the PDF.",
+    "checks": { "pointerEquals": { "/metadata/title": "October Services" }, "pdf": true }
+  },
+  {
+    "id": "invoice-customer",
+    "prompt": "Start from the UK VAT invoice example and change the customer's company name to \"Acme Widgets Ltd\". Save the PDF.",
+    "checks": { "contains": ["Acme Widgets Ltd"], "pdf": true }
+  },
+  {
+    "id": "append-paragraph",
+    "prompt": "Open the simple document example and add a new paragraph at the very end that reads \"Approved by the board.\" Save the PDF.",
+    "checks": { "contains": ["Approved by the board."], "lastText": "Approved by the board.", "pdf": true }
+  },
+  {
+    "id": "shipping-label",
+    "prompt": "Make a shipping label addressed to Jane Smith, 1 High Street, Leeds LS1 4AP. Start from an existing shipping label example and save the PDF.",
+    "checks": { "contains": ["Jane Smith", "Leeds"], "pdf": true }
+  },
+  {
+    "id": "from-scratch",
+    "prompt": "Create a new one-page document (not from an example) with a heading \"Team Offsite\" and a bulleted list of three items: Travel, Venue, Agenda. Save the PDF.",
+    "checks": { "contains": ["Team Offsite", "Travel", "Venue", "Agenda"], "types": ["UnorderedList"], "pdf": true }
+  }
+]

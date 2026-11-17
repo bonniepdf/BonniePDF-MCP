@@ -46,6 +46,15 @@ try {
   assert.ok(doc.text.includes('TextBlock'));
   const { data: element } = await call('describe_element', { name: 'TextBlock' });
   assert.ok(element.keys.fontSize);
+  const { data: pageSize } = await call('describe_element', { name: 'Page', property: 'size' });
+  assert.ok(pageSize.schema.oneOf[0].enum.includes('a4'));
+  const { data: stackChildren } = await call('describe_element', { name: 'HorizontalStack', property: 'children' });
+  assert.ok(stackChildren.$defs.StackChild.oneOf[1].required.includes('weight'));
+  const unknownProperty = await client.callTool({
+    name: 'describe_element',
+    arguments: { name: 'Page', property: 'Size' },
+  });
+  assert.equal(unknownProperty.isError, true);
   const { data: source } = await call('get_example', { exampleId: 'area-chart', view: 'typescript', maxChars: 1000 });
   assert.ok(source.text.includes('@bonniepdf/core'));
   const { data: created } = await call('create_document', { exampleId: 'business-invoice' });
@@ -116,6 +125,35 @@ try {
   assert.ok(Object.values(portableDefinition.resources).every(r => r.data && !r.ref));
   assert.equal((await call('validate_definition', { definition: portableDefinition })).data.valid, true);
   await call('delete_document', { documentId: images.documentId });
+  const { data: rotationSchema } = await call('describe_element', { name: 'Rotate', property: 'mode' });
+  assert.ok(JSON.stringify(rotationSchema).includes('constrained'));
+  const rotationDefinition = JSON.parse(
+    await readFile(resolve(root, '../BonniePDF-Internal/spec/fixtures/document-definition/valid/rotation.json'), 'utf8')
+  );
+  const { data: rotated } = await call('create_document', { definition: rotationDefinition });
+  assert.equal(
+    (await call('preview_definition', { documentId: rotated.documentId, includeImages: false })).data.pageCount,
+    1
+  );
+  assert.equal((await call('render_pdf', { documentId: rotated.documentId })).data.pageCount, 1);
+  await call('delete_document', { documentId: rotated.documentId });
+  for (const name of ['Flip', 'Translate']) {
+    const { data: schema } = await call('describe_element', { name });
+    assert.ok(JSON.stringify(schema).includes('contentWidth'));
+  }
+  const transformsDefinition = JSON.parse(
+    await readFile(
+      resolve(root, '../BonniePDF-Internal/spec/fixtures/document-definition/valid/transforms.json'),
+      'utf8'
+    )
+  );
+  const { data: transformed } = await call('create_document', { definition: transformsDefinition });
+  assert.equal(
+    (await call('preview_definition', { documentId: transformed.documentId, includeImages: false })).data.pageCount,
+    1
+  );
+  assert.equal((await call('render_pdf', { documentId: transformed.documentId })).data.pageCount, 1);
+  await call('delete_document', { documentId: transformed.documentId });
   // The lite profile exposes a smaller tool set for small local models.
   const liteTransport = new StdioClientTransport({
     command: process.execPath,

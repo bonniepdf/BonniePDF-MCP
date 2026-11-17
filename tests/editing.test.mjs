@@ -121,3 +121,34 @@ test('search ranks by relevance, folds plurals and centres excerpts on the query
   assert.ok(k.file('fonts/NotoSans-Regular.ttf').length > 1000);
   assert.ok(k.describe('Textblock').didYouMean.includes('TextBlock'));
 });
+
+test('descriptions expose page tokens, value types and focused wire schemas', () => {
+  const k = new KnowledgeBase();
+  const types = k.describe('');
+  assert.ok(types.availableObjects.includes('Page'));
+  assert.ok(types.availableValueTypes.includes('Length'));
+  const page = k.describe('Page');
+  assert.ok(page.tokens.PageSize.tokens.includes('a4'));
+  assert.ok(!page.tokens.PageSize.tokens.includes('A4'));
+  assert.equal(page.propertyTypes.size, 'PageSize');
+  const size = k.describe('Page', 'size');
+  assert.ok(size.schema.oneOf[0].enum.includes('a4'));
+  assert.equal(size.schema.oneOf[1].properties.width.exclusiveMinimum, 0);
+  assert.equal(size.required, false);
+  const height = k.describe('Container', 'height');
+  assert.equal(height.schema, k.describe('Length').schema);
+  assert.ok(height.schema.oneOf.some(v => v.type === 'number'));
+  const padding = k.describe('Container', 'padding');
+  assert.ok(padding.$defs.Length);
+  const children = k.describe('HorizontalStack', 'children');
+  assert.equal(children.required, true);
+  assert.equal(children.$defs.StackChild.oneOf[1].properties.weight.exclusiveMinimum, 0);
+  assert.equal(children.$defs.Element, undefined);
+  const child = k.describe('Container', 'child');
+  assert.equal(child.schema.$ref, '#/$defs/Element');
+  assert.ok(child.elementHint);
+  assert.ok(JSON.stringify(child).length < 500, 'recursive element schemas stay compact');
+  assert.throws(() => k.describe('Page', 'Size'), /Unknown property: Page.Size/);
+  assert.throws(() => k.describe('Missing', 'size'), /Unknown property/);
+  assert.throws(() => k.describe('Page', '__proto__'), /Unknown property/);
+});

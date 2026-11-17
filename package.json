@@ -26,6 +26,7 @@
   ],
   "scripts": {
     "package:claude": "node scripts/package-claude.mjs",
+    "verify:website": "node scripts/verify-website.mjs",
     "package:windows": "node scripts/package-windows.mjs",
     "test:installer": "node scripts/test-installer.mjs",
     "build": "pnpm run generate:knowledge && pnpm run build:code",

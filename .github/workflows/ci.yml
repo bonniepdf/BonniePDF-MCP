@@ -208,21 +208,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
       - name: Check the live pages, downloads, and npm launch command
-        shell: bash
-        run: |
-          base="https://github.com/$GITHUB_REPOSITORY/releases/latest/download"
-          for route in typescript dotnet; do
-            page=$(curl --fail --silent --show-error --location "https://www.bonniepdf.dev/features/$route/mcp-server")
-            grep -Fq "$base/BonniePDFMCPSetup-x64.exe" <<< "$page"
-            grep -Fq "$base/bonniepdf.mcpb" <<< "$page"
-          done
-          for file in BonniePDFMCPSetup-x64.exe bonniepdf.mcpb; do
-            curl --fail --silent --show-error --location --head --retry 3 "$base/$file" >/dev/null
-          done
-          export BONNIEPDF_MCP_HOME="$RUNNER_TEMP/bonniepdf-doctor"
-          npx --yes --package "$base/bonniepdf-mcp.tgz" bonniepdf-mcp doctor
+        env:
+          BONNIEPDF_MCP_HOME: ${{ runner.temp }}/bonniepdf-doctor
+        run: npm run verify:website

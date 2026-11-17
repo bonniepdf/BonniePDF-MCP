@@ -23,6 +23,7 @@ const run = (executable, args, options = {}) => {
     );
   return result;
 };
+run(process.execPath, [fileURLToPath(new URL('./generate-installer-artwork.mjs', import.meta.url))]);
 run(process.execPath, [process.env.npm_execpath, 'run', 'build']);
 const knowledge = JSON.parse(await readFile(join(root, 'data/knowledge.json'), 'utf8'));
 if (knowledge.coreVersion !== core.version)

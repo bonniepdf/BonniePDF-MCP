@@ -26,8 +26,8 @@ MinVersion=10.0
 OutputDir={#InstallerOutput}
 OutputBaseFilename=BonniePDFMCPSetup-{#AppVersion}-x64
 ; Editable wizard artwork, stretched by Inno if the sizes change:
-; banner-side.bmp 164x314 (left of wizard pages), banner-top.bmp 55x58 (top right).
-; At WizardSizePercent=130 these render at about 213x408 and 71x75.
+; Rendered from the website logo and hero artwork at 4x resolution.
+; Logical sizes: side 164x314 (left of wizard pages), top 55x58 (top right).
 WizardImageFile=banner-side.bmp
 WizardSmallImageFile=banner-top.bmp
 Compression=lzma2

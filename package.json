@@ -25,6 +25,7 @@
     "evals"
   ],
   "scripts": {
+    "generate:installer-artwork": "node scripts/generate-installer-artwork.mjs",
     "package:claude": "node scripts/package-claude.mjs",
     "verify:website": "node scripts/verify-website.mjs",
     "package:windows": "node scripts/package-windows.mjs",

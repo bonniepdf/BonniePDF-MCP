@@ -25,9 +25,16 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir={#InstallerOutput}
 OutputBaseFilename=BonniePDFMCPSetup-{#AppVersion}-x64
+; Editable wizard artwork, stretched by Inno if the sizes change:
+; banner-side.bmp 164x314 (left of wizard pages), banner-top.bmp 55x58 (top right).
+; At WizardSizePercent=130 these render at about 213x408 and 71x75.
+WizardImageFile=banner-side.bmp
+WizardSmallImageFile=banner-top.bmp
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+; Default is 120: this gives the assistant tasks list more breathing room.
+WizardSizePercent=130,130
 DisableWelcomePage=no
 LicenseFile={#PayloadDir}\LICENSE.txt
 UninstallDisplayName=BonniePDF MCP
@@ -46,6 +53,7 @@ Name: antigravity; Description: Connect to Antigravity; GroupDescription: "Conne
 Name: vscode; Description: Connect to GitHub Copilot in VS Code (default profile); GroupDescription: "Connect assistants for the current user:"; Flags: unchecked
 Name: visualstudio; Description: Connect to GitHub Copilot in Visual Studio; GroupDescription: "Connect assistants for the current user:"; Flags: unchecked
 Name: copilotcli; Description: Connect to GitHub Copilot CLI; GroupDescription: "Connect assistants for the current user:"; Flags: unchecked
+Name: zcode; Description: Connect to ZCode; GroupDescription: "Connect assistants for the current user:"; Flags: unchecked
 Name: replace; Description: Replace an existing BonniePDF connection (a backup will be saved); GroupDescription: "Existing BonniePDF connections:"; Flags: unchecked
 
 [Files]
@@ -103,6 +111,7 @@ begin
     ConnectClient('vscode', 'vscode');
     ConnectClient('visualstudio', 'visual-studio');
     ConnectClient('copilotcli', 'copilot-cli');
+    ConnectClient('zcode', 'zcode');
     if ConnectionsFailed then
       RaiseException('BonniePDF MCP is installed, but a selected client could not be configured. See the setup report and retry using Connect assistants.');
   end;

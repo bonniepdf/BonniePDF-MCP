@@ -9,6 +9,9 @@ import { tmpdir } from 'node:os';
 import { parse as toml } from 'smol-toml';
 import { CLIENTS, serverNamespace } from '../dist/clients.js';
 
+const at = (value, path) => path.reduce((node, key) => node?.[key], value);
+const nest = (path, leaf) => path.reduceRight((node, key) => ({ [key]: node }), leaf);
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 if (process.platform !== 'win32') throw new Error('Run the installer test on Windows.');
 const manifest = JSON.parse(await readFile(join(root, 'out/releases/latest.json'), 'utf8'));
@@ -67,11 +70,11 @@ try {
       file,
       client === 'codex'
         ? '# retained\n[mcp_servers.other]\ncommand="other"\n'
-        : JSON.stringify({ [serverNamespace(client)]: { other: { command: 'other' } } })
+        : JSON.stringify(nest(serverNamespace(client), { other: { command: 'other' } }))
     );
     run(node, [entry, 'setup', '--non-interactive', '--client', client, '--config-file', file]);
     const parsed = client === 'codex' ? toml(await readFile(file, 'utf8')) : JSON.parse(await readFile(file, 'utf8'));
-    const servers = parsed[serverNamespace(client)];
+    const servers = at(parsed, serverNamespace(client));
     assert.equal(servers.bonniepdf.command, node);
     assert.equal(servers.bonniepdf.args[0], entry);
     assert.equal(servers.other.command, 'other');
@@ -90,7 +93,7 @@ try {
   installed = false;
   for (const { file, client } of files) {
     const parsed = client === 'codex' ? toml(await readFile(file, 'utf8')) : JSON.parse(await readFile(file, 'utf8'));
-    const servers = parsed[serverNamespace(client)];
+    const servers = at(parsed, serverNamespace(client));
     assert.equal(servers.bonniepdf, undefined);
     assert.equal(servers.other.command, 'other');
   }
@@ -103,7 +106,7 @@ try {
       'spaces in paths',
       'bundled runtime',
       'stdio/PDF/PNG self-test',
-      'seven client configuration targets',
+      'eight client configuration targets',
       'repair install',
       'uninstall disconnects',
       'user documents preserved',

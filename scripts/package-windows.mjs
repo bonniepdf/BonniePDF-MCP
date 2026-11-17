@@ -136,7 +136,7 @@ const isccCandidates = [
 const onPath = spawnSync('where.exe', ['ISCC.exe'], { encoding: 'utf8', windowsHide: true });
 if (onPath.status === 0) isccCandidates.push(...onPath.stdout.trim().split(/\r?\n/));
 const iscc = isccCandidates.find(path => path && existsSync(path));
-if (!iscc) throw new Error('Install Inno Setup 6 or set ISCC_PATH to ISCC.exe.');
+if (!iscc) throw new Error('Install Inno Setup 6.3 or later, or set ISCC_PATH to ISCC.exe.');
 const installer = join(release, `BonniePDFMCPSetup-${pkg.version}-x64.exe`);
 run(iscc, [
   `/DAppVersion=${pkg.version}`,

@@ -128,7 +128,7 @@ try {
   const { data: rotationSchema } = await call('describe_element', { name: 'Rotate', property: 'mode' });
   assert.ok(JSON.stringify(rotationSchema).includes('constrained'));
   const rotationDefinition = JSON.parse(
-    await readFile(resolve(root, '../BonniePDF-Internal/spec/fixtures/document-definition/valid/rotation.json'), 'utf8')
+    await readFile(resolve(root, '../BonniePDF-Spec/fixtures/document-definition/valid/rotation.json'), 'utf8')
   );
   const { data: rotated } = await call('create_document', { definition: rotationDefinition });
   assert.equal(
@@ -143,7 +143,7 @@ try {
   }
   const transformsDefinition = JSON.parse(
     await readFile(
-      resolve(root, '../BonniePDF-Internal/spec/fixtures/document-definition/valid/transforms.json'),
+      resolve(root, '../BonniePDF-Spec/fixtures/document-definition/valid/transforms.json'),
       'utf8'
     )
   );

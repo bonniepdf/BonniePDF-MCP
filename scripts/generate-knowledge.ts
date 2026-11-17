@@ -160,7 +160,7 @@ for (const language of ['typescript', 'dotnet']) {
   }
 }
 // This is the explicitly published schema artifact, not the private specification prose.
-const schema = await readFile(resolve(root, 'BonniePDF-Internal/spec/schema/published/1.0.json'));
+const schema = await readFile(resolve(root, 'BonniePDF-Spec/schema/published/1.0.json'));
 files.set('schema.json', schema);
 const coreVersion = JSON.parse(await readFile(resolve(root, 'BonniePDF-TypeScript/core/package.json'), 'utf8')).version;
 const elementSource = await readFile(

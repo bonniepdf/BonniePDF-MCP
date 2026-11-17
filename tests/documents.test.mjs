@@ -74,8 +74,8 @@ test('search is bounded, retrieves source-only examples, and can filter editable
   const k = new KnowledgeBase();
   const all = k.search('chart', 'examples', 3);
   assert.equal(all.results.length, 3);
-  const sourceOnly = k.search('utility bill', 'examples', 3);
-  assert.ok(sourceOnly.results.some(e => e.id === 'utility-bill' && e.editable === false));
+  const sourceOnly = k.search('gift voucher', 'examples', 3);
+  assert.ok(sourceOnly.results.some(e => e.id === 'gift-voucher' && e.editable === false));
   const editable = k.search('invoice', 'examples', 10, undefined, true);
   assert.ok(editable.results.length > 0);
   assert.ok(editable.results.every(e => e.editable === true));

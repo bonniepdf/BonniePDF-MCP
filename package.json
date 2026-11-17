@@ -1,9 +1,16 @@
 {
   "name": "@bonniepdf/mcp",
   "version": "2026.11.12",
-  "private": true,
   "license": "Apache-2.0",
   "description": "Local BonniePDF authoring tools for MCP assistants",
+  "homepage": "https://www.bonniepdf.dev/features/typescript/mcp-server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bonniepdf/BonniePDF-MCP.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "bin": {
     "bonniepdf-mcp": "dist/index.js"

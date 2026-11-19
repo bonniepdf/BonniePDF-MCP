@@ -117,7 +117,7 @@ pnpm --filter @bonniepdf/mcp test:installer
 
 Packaging regenerates the knowledge bundle and compiles the server before staging. It requires Windows x64, Node.js 24+ with pnpm, and Inno Setup 6.3+. Set `ISCC_PATH` if the compiler is outside the standard locations. Production dependencies are installed in an isolated staging workspace, never deployed over the development workspace. The Node executable is checked against its upstream SHA-256, and its complete licence is included.
 
-The build produces `out/releases/<unique-build>/BonniePDFMCPSetup-<version>-x64.exe`, a portable payload, a dependency lock and a release manifest with hashes. `out/releases/latest.json` identifies the latest successful build. Builds are unsigned; apply the release signing process before public distribution. The Inno AppId is stable across upgrades and must not change.
+The build produces `out/releases/<unique-build>/BonniePDFMCPSetup-<version>-x64.exe`, a portable payload, a dependency lock and a release manifest with hashes. `out/releases/latest.json` identifies the latest successful build. Local builds are unsigned. Tagged releases sign the installer in CI, as described below. The Inno AppId is stable across upgrades and must not change.
 
 Installer banners use the BonniePDF website logo with its blue-to-green hero gradient and contour lines. Editable Photoshop sources are `installer/banner-side.psd` (656 × 1256) and `installer/banner-top.psd` (1988 × 232). They contain separate gradient glows, contour lines and an embedded SVG logo. The side banner also has an editable title layer. The top banner spans the full header width, with the installer page title drawn over it.
 
@@ -129,7 +129,7 @@ After editing a PSD, export a flattened, 24-bit RGB BMP at the same pixel dimens
 
 GitHub Actions builds on Linux and Windows for pull requests and pushes to `master`. The workflow tests a clean Windows install, repair and uninstall, and runs the packaged Claude Desktop extension's server diagnostics on Windows and macOS. The tested downloads are available as Actions artifacts.
 
-A tag matching the package version, such as `v2026.11.13`, runs the same checks before publishing the three downloads at the latest GitHub release. Use a new tag for each release. The `release` environment signs the installer through Microsoft Artifact Signing. Tagged releases verify the public website links and run diagnostics from the published npm tarball.
+A tag matching the package version, such as `v2026.11.13`, runs the same checks before publishing the three downloads at the latest GitHub release. Use a new tag for each release. The `release` environment signs the installer through Microsoft Artifact Signing. Tagged releases verify the public website links and run diagnostics from the package tarball attached to the release.
 
 ### Enable Windows code signing
 

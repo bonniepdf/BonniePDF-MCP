@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: bonniepdf/BonniePDF-TypeScript
-          ref: 8a567527d359ee773129be134dcd1a4a57fd8525 # v2026.11.13
+          ref: 50229e2f06b6ffe36c6ede2d740309bf86d8149d # v2026.11.21
           path: BonniePDF-TypeScript
           persist-credentials: false
 

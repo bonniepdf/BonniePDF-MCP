@@ -77,13 +77,17 @@ jobs:
         shell: bash
         run: |
           mkdir -p assets
+          # The candidate Core version is available from this checkout before it reaches npm.
+          pnpm --filter @bonniepdf/core --config.ignore-scripts=true pack --out "$RUNNER_TEMP/bonniepdf-core.tgz"
           pnpm --filter @bonniepdf/mcp --config.ignore-scripts=true pack --out "$PWD/assets/bonniepdf-mcp.tgz"
           export BONNIEPDF_MCP_HOME="$RUNNER_TEMP/bonniepdf-doctor"
-          npx --yes --package "$PWD/assets/bonniepdf-mcp.tgz" bonniepdf-mcp doctor
+          npm exec --yes --package="$RUNNER_TEMP/bonniepdf-core.tgz" --package="$PWD/assets/bonniepdf-mcp.tgz" -- bonniepdf-mcp doctor
 
       - name: Package the Claude Desktop extension
         if: runner.os == 'Linux'
-        run: npm --prefix BonniePDF-MCP run package:claude -- "$PWD/assets/bonniepdf-mcp.tgz" "$PWD/assets/bonniepdf.mcpb"
+        run: >
+          npm --prefix BonniePDF-MCP run package:claude --
+          "$PWD/assets/bonniepdf-mcp.tgz" "$PWD/assets/bonniepdf.mcpb" "$RUNNER_TEMP/bonniepdf-core.tgz"
 
       - name: Build, install, repair and uninstall on Windows
         if: runner.os == 'Windows'

@@ -3,9 +3,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-const [tarball, output] = process.argv.slice(2).map(path => resolve(path));
+const [tarball, output, coreTarball] = process.argv.slice(2).map(path => resolve(path));
 if (!tarball || !output || !process.env.npm_execpath) {
-  throw new Error('Usage: npm run package:claude -- <npm tarball> <output.mcpb>');
+  throw new Error('Usage: npm run package:claude -- <npm tarball> <output.mcpb> [Core tarball]');
 }
 
 const scratch = await mkdtemp(join(tmpdir(), 'bonniepdf-mcpb-'));
@@ -16,7 +16,8 @@ const npm = (args, stdio = 'inherit') =>
 try {
   await mkdir(bundle);
   await writeFile(join(bundle, 'package.json'), '{"private":true}\n');
-  npm(['install', '--prefix', bundle, '--ignore-scripts', '--no-audit', '--no-fund', tarball]);
+  const packages = coreTarball ? [coreTarball, tarball] : [tarball];
+  npm(['install', '--prefix', bundle, '--ignore-scripts', '--no-audit', '--no-fund', ...packages]);
   const installed = JSON.parse(await readFile(join(bundle, 'node_modules/@bonniepdf/mcp/package.json'), 'utf8'));
 
   // npm installs only the runner's optional native binary. Include each Claude Desktop target.
